@@ -19,6 +19,7 @@ if __name__ == '__main__':
         speaker = args[2]
     else:
         speaker = 'tom'
+    print('Chosen speaker: '+ speaker)
 
     for key, value in labels_dict.items():
         # Create a new directory for the labels audio files, if needed
