@@ -1,5 +1,6 @@
 import os, sys, logging, glob, librosa
 import numpy as np
+import pickle
 from utils.constants import Constants
 logging.basicConfig(level=Constants.LOGGING_LEVEL)
 
@@ -18,6 +19,20 @@ class Dataset():
         temp_data.y = self.y + other.y
         temp_data.loaded = True
         return temp_data
+
+    def to_file(self):
+        filename = ""
+        names = self.root_folder.split(':')
+        i = 0
+        for name in names:
+            last_dir_name = name.split(os.path.sep)[-1]
+            filename = filename + last_dir_name
+            if i+1 != len(names):
+                filename += '-'
+            i += 1
+        filename += ".pickle"
+        with open(filename, 'wb') as pickle_file:
+            pickle.dump(self, pickle_file)
 
     def __radd__(self, other):
         return self.__add__(other)

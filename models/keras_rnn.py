@@ -1,22 +1,19 @@
-import librosa
 import numpy as np
 import logging
+import glob
+import pickle
 from functools import reduce
 from keras.models import Sequential
 from keras.layers import Dense
-from keras.layers import LSTM
 from keras.layers import SimpleRNN
-from keras.layers.wrappers import TimeDistributed
 from keras.preprocessing import sequence
 from keras.utils import to_categorical
-from data.dataset import OSXSpeakerDataset
-from sklearn.model_selection import train_test_split
 from utils.constants import Constants
 
 
 def build_keras_rnn():
     model = Sequential()
-    model.add(SimpleRNN(100, input_shape=(30000, 1), return_sequences = True))
+    model.add(SimpleRNN(100, input_shape=(1000, 1), return_sequences = True))
     model.add(SimpleRNN(100, return_sequences = False))
     model.add(Dense(1000, activation='sigmoid'))
     model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
@@ -25,7 +22,13 @@ def build_keras_rnn():
 
 def train_keras_rnn(model):
     # load prepare the data
-    train_speakers_dataset, test_speaker_dataset = load_all_speakers()
+    #train_speakers_dataset, test_speaker_dataset = load_all_speakers()
+    pickle_files = glob.glob('*.pickle')
+    with open(pickle_files[1], 'rb') as train_file:
+        train_speakers_dataset = pickle.load(train_file)
+    with open(pickle_files[0], 'rb') as test_file:
+        test_speaker_dataset = pickle.load(test_file)
+
     X_train = train_speakers_dataset.X
     y_train = train_speakers_dataset.y
     X_test = test_speaker_dataset.X
@@ -34,7 +37,7 @@ def train_keras_rnn(model):
     logging.debug('Total size of test dataset: ' + str(np.shape(X_test)))
 
     # pad sequences
-    maximum_length = 30000
+    maximum_length = 1000
     X_train = sequence.pad_sequences(X_train, maxlen=maximum_length)
     X_test = sequence.pad_sequences(X_test, maxlen=maximum_length)
 
