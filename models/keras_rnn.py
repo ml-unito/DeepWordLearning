@@ -13,8 +13,7 @@ from utils.constants import Constants
 
 def build_keras_rnn():
     model = Sequential()
-    model.add(SimpleRNN(100, input_shape=(1000, 1), return_sequences = True))
-    model.add(SimpleRNN(100, return_sequences = False))
+    model.add(SimpleRNN(1000, input_shape=(1000, 1)))
     model.add(Dense(1000, activation='sigmoid'))
     model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     print(model.summary())
