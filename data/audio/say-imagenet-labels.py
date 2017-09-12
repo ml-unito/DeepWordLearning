@@ -29,7 +29,7 @@ if __name__ == '__main__':
         word_list = tokenize_label_words(value)
         i = 0
         for word in word_list:
-            subprocess.run(['say', '-v', str(speaker), word, '-o', os.path.join(target_dir, str(i) + '.aiff')])
+            subprocess.run(['say', '-v', str(speaker), word, '-o', os.path.join(target_dir, str(i) + '.aiff'), '-r', str(130)])
             i += 1
 
 
