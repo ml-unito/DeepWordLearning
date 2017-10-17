@@ -51,7 +51,7 @@ def train_keras_rnn(model):
         X_temp[i] = x[0:maximum_length]
         i += 1
     X_train = X_temp
-    
+
     X_temp = np.zeros((np.shape(X_test)[0], maximum_length))
     i = 0
     for x in X_test:

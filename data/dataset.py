@@ -127,17 +127,12 @@ class TIMITDataset(Dataset):
                 for generic_dataset_file in glob.glob(os.path.join(speaker_subsubfolder, '*')):
                     if generic_dataset_file[-3:] == 'WAV':
                         temp_X, sr = librosa.core.load(generic_dataset_file) # actually an audio file!
-                        print(temp_X.shape)
                         if get_mfcc == True:
                             mfcc = librosa.feature.mfcc(y=temp_X, sr=sr, n_mfcc=n_mfcc)
-                            print(mfcc.shape)
                             mfcc_delta = librosa.feature.delta(mfcc)
-                            print(mfcc_delta.shape)
                             mfcc_delta2 = librosa.feature.delta(mfcc, order=2)
                             temp_X = np.concatenate((mfcc, mfcc_delta, mfcc_delta2))
-                            print(temp_X.shape)
                         X.append(temp_X)
-                        sys.exit(1)
                     if generic_dataset_file[-3:] == 'PHN':
                         with open(generic_dataset_file, 'r') as phonetic_transcription_file:
                             temp_y = phonetic_transcription_file.read()
