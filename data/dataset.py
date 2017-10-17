@@ -1,6 +1,7 @@
 import os, sys, logging, glob, librosa
 import numpy as np
 import pickle
+import datetime
 from utils.constants import Constants
 logging.basicConfig(level=Constants.LOGGING_LEVEL)
 
@@ -9,7 +10,7 @@ class Dataset():
     def __init__(self, root_folder):
         self.root_folder = root_folder
 
-    def load():
+    def load(self):
         raise NotImplementedError('This is an abstract class. \n Load the \
                                    Dataset using a subclass.')
 
@@ -20,22 +21,13 @@ class Dataset():
         temp_data.loaded = True
         return temp_data
 
-    def to_file(self):
-        filename = ""
-        names = self.root_folder.split(':')
-        i = 0
-        for name in names:
-            last_dir_name = name.split(os.path.sep)[-1]
-            filename = filename + last_dir_name
-            if i+1 != len(names):
-                filename += '-'
-            i += 1
-        filename += ".pickle"
-        with open(filename, 'wb') as pickle_file:
-            pickle.dump(self, pickle_file)
-
     def __radd__(self, other):
         return self.__add__(other)
+
+    def to_file(self):
+        raise NotImplementedError('This is an abstract class. \n Dump the \
+                                   Dataset to file using a subclass.')
+
 
 
 class OSXSpeakerDataset(Dataset):
@@ -84,6 +76,73 @@ class OSXSpeakerDataset(Dataset):
         self.max_length = max_length
         self.X = X_padded
         logging.debug('X[0] shape after padding: ' + str(np.shape(X[0])))
+
+    def to_file(self):
+        filename = ""
+        names = self.root_folder.split(':')
+        i = 0
+        for name in names:
+            last_dir_name = name.split(os.path.sep)[-1]
+            filename = filename + last_dir_name
+            if i+1 != len(names):
+                filename += '-'
+            i += 1
+        filename += ".pickle"
+        with open(filename, 'wb') as pickle_file:
+            pickle.dump(self, pickle_file)
+
+class TIMITDataset(Dataset):
+    def __init__(self):
+        self.root_folder = os.path.join(Constants.TIMIT_DATA_FOLDER)
+        self.loaded = False
+
+    def load(self, get_mfcc=True, n_mfcc=20):
+        if self.loaded == True:
+            logging.error('This Dataset instance has been loaded already!')
+            return
+        train_folder = os.path.join(self.root_folder, 'TRAIN')
+        test_folder = os.path.join(self.root_folder, 'TEST')
+        self.X_train, self.y_train = TIMITDataset.load_explore_timit(train_folder, get_mfcc, n_mfcc)
+        self.X_test, self.y_test = TIMITDataset.load_explore_timit(test_folder, get_mfcc, n_mfcc)
+        self.loaded = True
+        self.has_mfcc = get_mfcc
+
+    def to_file(self):
+        filename = "timit_"
+        date_object = datetime.date.today()
+        filename = filename + str(date_object.year) + str(date_object.month) + str(date_object.day)
+        if self.has_mfcc:
+            filename += "_mfcc"
+        filename += ".pickle"
+        with open(filename, 'wb') as pickle_file:
+            pickle.dump(self, pickle_file)
+
+    @staticmethod
+    def load_explore_timit(folder, get_mfcc, n_mfcc):
+        X = []
+        y = []
+        for dialect_subfolder in glob.glob(os.path.join(folder, '*')):
+            for speaker_subsubfolder in glob.glob(os.path.join(dialect_subfolder, '*')):
+                logging.debug('Loading ' + str(speaker_subsubfolder) + '...')
+                for generic_dataset_file in glob.glob(os.path.join(speaker_subsubfolder, '*')):
+                    if generic_dataset_file[-3:] == 'WAV':
+                        temp_X, sr = librosa.core.load(generic_dataset_file) # actually an audio file!
+                        print(temp_X.shape)
+                        if get_mfcc == True:
+                            mfcc = librosa.feature.mfcc(y=temp_X, sr=sr, n_mfcc=n_mfcc)
+                            print(mfcc.shape)
+                            mfcc_delta = librosa.feature.delta(mfcc)
+                            print(mfcc_delta.shape)
+                            mfcc_delta2 = librosa.feature.delta(mfcc, order=2)
+                            temp_X = np.concatenate((mfcc, mfcc_delta, mfcc_delta2))
+                            print(temp_X.shape)
+                        X.append(temp_X)
+                        sys.exit(1)
+                    if generic_dataset_file[-3:] == 'PHN':
+                        with open(generic_dataset_file, 'r') as phonetic_transcription_file:
+                            temp_y = phonetic_transcription_file.read()
+                        y.append(temp_y)
+        return X, y
 
 if __name__ == '__main__':
     c = OSXSpeakerDataset('tom')
