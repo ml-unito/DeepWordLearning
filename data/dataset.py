@@ -2,6 +2,7 @@ import os, sys, logging, glob, librosa
 import numpy as np
 import pickle
 import datetime
+import tensorflow as tf
 from utils.constants import Constants
 logging.basicConfig(level=Constants.LOGGING_LEVEL)
 
@@ -28,7 +29,13 @@ class Dataset():
         raise NotImplementedError('This is an abstract class. \n Dump the \
                                    Dataset to file using a subclass.')
 
-
+    def get_placeholders(self, batch_size, sparse=False):
+        x_placeholder = tf.placeholder(tf.float32, shape=(batch_size, None, self.X_train.shape[1]))
+        if sparse:
+            y_placeholder = tf.sparse_placeholder(tf.int32, shape=(batch_size))
+        else:
+            y_placeholder = tf.placeholder(tf.int32, shape=(batch_size))
+        return x_placeholder, y_placeholder
 
 class OSXSpeakerDataset(Dataset):
 
@@ -92,11 +99,15 @@ class OSXSpeakerDataset(Dataset):
             pickle.dump(self, pickle_file)
 
 class TIMITDataset(Dataset):
+    # phoneme dictionary
+    phoneme_dict = Constants.TIMIT_PHONEME_DICT
+    signal_rate = 16000
+
     def __init__(self):
         self.root_folder = os.path.join(Constants.TIMIT_DATA_FOLDER)
         self.loaded = False
 
-    def load(self, get_mfcc=True, n_mfcc=20):
+    def load(self, get_mfcc=True, n_mfcc=13):
         if self.loaded == True:
             logging.error('This Dataset instance has been loaded already!')
             return
@@ -118,26 +129,56 @@ class TIMITDataset(Dataset):
             pickle.dump(self, pickle_file)
 
     @staticmethod
-    def load_explore_timit(folder, get_mfcc, n_mfcc):
+    def load_explore_timit(folder, get_mfcc, n_mfcc, frame_length_seconds=0.010, frame_step_seconds=0.005):
         X = []
         y = []
         for dialect_subfolder in glob.glob(os.path.join(folder, '*')):
             for speaker_subsubfolder in glob.glob(os.path.join(dialect_subfolder, '*')):
-                logging.debug('Loading ' + str(speaker_subsubfolder) + '...')
+                logging.info('Loading ' + str(speaker_subsubfolder) + '...')
                 for generic_dataset_file in glob.glob(os.path.join(speaker_subsubfolder, '*')):
                     if generic_dataset_file[-3:] == 'WAV':
-                        temp_X, sr = librosa.core.load(generic_dataset_file) # actually an audio file!
+                        temp_X, sr = librosa.core.load(generic_dataset_file, sr=16000) # actually an audio file!
                         if get_mfcc == True:
-                            mfcc = librosa.feature.mfcc(y=temp_X, sr=sr, n_mfcc=n_mfcc)
-                            mfcc_delta = librosa.feature.delta(mfcc)
-                            mfcc_delta2 = librosa.feature.delta(mfcc, order=2)
-                            temp_X = np.concatenate((mfcc, mfcc_delta, mfcc_delta2))
+                            temp_X = TIMITDataset.get_mfcc_from_audio(temp_X, sr, n_mfcc, frame_length_seconds, frame_step_seconds)
                         X.append(temp_X)
                     if generic_dataset_file[-3:] == 'PHN':
+                        y_temp = []
                         with open(generic_dataset_file, 'r') as phonetic_transcription_file:
                             temp_y = phonetic_transcription_file.read()
+                            temp_y = TIMITDataset.parse_phoneme_string(temp_y, frame_step_seconds*TIMITDataset.signal_rate)
                         y.append(temp_y)
-        return X, y
+        return X, np.asarray(y)
+
+    @staticmethod
+    def get_mfcc_from_audio(audio, signal_rate, n_mfcc, frame_length_seconds, frame_step_seconds):
+        mfcc = librosa.feature.mfcc(y=audio, sr=signal_rate,
+                n_fft=int(frame_length_seconds*signal_rate),
+                hop_length=int(frame_step_seconds*signal_rate))
+        # add energy info to feature array
+        energy = librosa.feature.rmse(audio, n_fft=int(frame_length_seconds*signal_rate), hop_length=int(frame_step_seconds*signal_rate))
+        np.insert(mfcc, 0, energy, axis=0)
+        mfcc_delta = librosa.feature.delta(mfcc)
+        mfcc_delta2 = librosa.feature.delta(mfcc, order=2)
+        temp_X = np.concatenate((mfcc, mfcc_delta, mfcc_delta2)).T # so that each row is a time step
+        return temp_X
+
+    @staticmethod
+    def parse_phoneme_string(string, divisor):
+        lines = string.split('\n')[:-1] # last line in .phn files is always empty for some reason
+        temp_list = []
+        for line in lines:
+            tokens = line.split(' ')
+            start_time = int(tokens[0]) // divisor
+            end_time = int(tokens[1]) // divisor
+            try:
+                assert end_time != start_time
+            except AssertionError:
+                print(line)
+                print(start_time)
+                print(end_time)
+            label = TIMITDataset.phoneme_dict[tokens[2]]
+            temp_list.append([start_time, end_time, label])
+        return temp_list
 
 if __name__ == '__main__':
     c = OSXSpeakerDataset('tom')
