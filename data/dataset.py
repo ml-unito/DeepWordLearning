@@ -141,13 +141,16 @@ class TIMITDataset(Dataset):
                         if get_mfcc == True:
                             temp_X = TIMITDataset.get_mfcc_from_audio(temp_X, sr, n_mfcc, frame_length_seconds, frame_step_seconds)
                         X.append(temp_X)
+                        print(temp_X.shape)
                     if generic_dataset_file[-3:] == 'PHN':
                         y_temp = []
                         with open(generic_dataset_file, 'r') as phonetic_transcription_file:
                             temp_y = phonetic_transcription_file.read()
                             temp_y = TIMITDataset.parse_phoneme_string(temp_y, frame_step_seconds*TIMITDataset.signal_rate)
-                        y.append(temp_y)
-        return X, np.asarray(y)
+                        # discard empty features
+                        if temp_y != []:
+                            y = y + temp_y
+            return np.array(X), np.array(y)
 
     @staticmethod
     def get_mfcc_from_audio(audio, signal_rate, n_mfcc, frame_length_seconds, frame_step_seconds):
@@ -173,11 +176,9 @@ class TIMITDataset(Dataset):
             try:
                 assert end_time != start_time
             except AssertionError:
-                print(line)
-                print(start_time)
-                print(end_time)
+                return []
             label = TIMITDataset.phoneme_dict[tokens[2]]
-            temp_list.append([start_time, end_time, label])
+            temp_list.append([label] * (end_time - start_time))
         return temp_list
 
 if __name__ == '__main__':
