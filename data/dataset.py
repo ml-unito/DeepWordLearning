@@ -135,26 +135,39 @@ class TIMITDataset(Dataset):
         for dialect_subfolder in glob.glob(os.path.join(folder, '*')):
             for speaker_subsubfolder in glob.glob(os.path.join(dialect_subfolder, '*')):
                 logging.info('Loading ' + str(speaker_subsubfolder) + '...')
-                for generic_dataset_file in glob.glob(os.path.join(speaker_subsubfolder, '*')):
-                    if generic_dataset_file[-3:] == 'WAV':
-                        temp_X, sr = librosa.core.load(generic_dataset_file, sr=16000) # actually an audio file!
-                        if get_mfcc == True:
-                            temp_X = TIMITDataset.get_mfcc_from_audio(temp_X, sr, n_mfcc, frame_length_seconds, frame_step_seconds)
-                        X.append(temp_X)
-                        print(temp_X.shape)
-                    if generic_dataset_file[-3:] == 'PHN':
-                        y_temp = []
-                        with open(generic_dataset_file, 'r') as phonetic_transcription_file:
-                            temp_y = phonetic_transcription_file.read()
-                            temp_y = TIMITDataset.parse_phoneme_string(temp_y, frame_step_seconds*TIMITDataset.signal_rate)
-                        # discard empty features
-                        if temp_y != []:
-                            y = y + temp_y
-            return np.array(X), np.array(y)
+
+                audio_file_list = []
+                for audio_file in glob.glob(os.path.join(speaker_subsubfolder, '*.WAV')):
+                    audio_file_list.append(audio_file)
+                audio_file_list.sort()
+
+                phonem_file_list = []
+                for phonem_file in glob.glob(os.path.join(speaker_subsubfolder, '*.PHN')):
+                    phonem_file_list.append(phonem_file)
+                phonem_file_list.sort()
+
+                dataset_tuple_list = [(af, pf) for af, pf in zip(audio_file_list, phonem_file_list)]
+
+                for audio_file, phonem_file in dataset_tuple_list:
+                    temp_X, sr = librosa.core.load(audio_file, sr=16000)
+                    if get_mfcc == True:
+                        temp_X = TIMITDataset.get_mfcc_from_audio(temp_X, sr, n_mfcc, frame_length_seconds, frame_step_seconds)
+                    X.append(temp_X)
+
+                    y_temp = []
+                    with open(phonem_file, 'r') as phonetic_transcription_file:
+                        temp_y = phonetic_transcription_file.read()
+                        temp_y = TIMITDataset.parse_phoneme_string(temp_y, frame_step_seconds*TIMITDataset.signal_rate)
+
+                    # pad the phonetic transcription, if needed
+                    temp_y += [0 for i in range(len(temp_X) - len(temp_y))]
+                    y.append(temp_y)
+                    assert len(temp_X) == len(temp_y)
+        return np.array(X), np.array(y)
 
     @staticmethod
     def get_mfcc_from_audio(audio, signal_rate, n_mfcc, frame_length_seconds, frame_step_seconds):
-        mfcc = librosa.feature.mfcc(y=audio, sr=signal_rate,
+        mfcc = librosa.feature.mfcc(y=audio, sr=signal_rate, n_mfcc=n_mfcc,
                 n_fft=int(frame_length_seconds*signal_rate),
                 hop_length=int(frame_step_seconds*signal_rate))
         # add energy info to feature array
@@ -169,16 +182,21 @@ class TIMITDataset(Dataset):
     def parse_phoneme_string(string, divisor):
         lines = string.split('\n')[:-1] # last line in .phn files is always empty for some reason
         temp_list = []
+        old_end_time = 0
         for line in lines:
             tokens = line.split(' ')
             start_time = int(tokens[0]) // divisor
             end_time = int(tokens[1]) // divisor
+            # sometimes the fft window is too small for the phonem, so start_time and end_time
+            # will be the same. in this situation, we drop the label. this happens with a frequency
+            # p=10^-5 using the default parameters
             try:
                 assert end_time != start_time
             except AssertionError:
-                return []
+                continue
+            old_end_time = end_time
             label = TIMITDataset.phoneme_dict[tokens[2]]
-            temp_list.append([label] * (end_time - start_time))
+            temp_list += [label] * int(end_time - start_time)
         return temp_list
 
 if __name__ == '__main__':
