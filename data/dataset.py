@@ -113,8 +113,8 @@ class TIMITDataset(Dataset):
             return
         train_folder = os.path.join(self.root_folder, 'TRAIN')
         test_folder = os.path.join(self.root_folder, 'TEST')
-        self.X_train, self.y_train = TIMITDataset.load_explore_timit(train_folder, get_mfcc, n_mfcc)
-        self.X_test, self.y_test = TIMITDataset.load_explore_timit(test_folder, get_mfcc, n_mfcc)
+        self.X_train, self.y_train, self.train_timesteps = TIMITDataset.load_explore_timit(train_folder, get_mfcc, n_mfcc)
+        self.X_test, self.y_test, self.test_timesteps = TIMITDataset.load_explore_timit(test_folder, get_mfcc, n_mfcc)
         self.loaded = True
         self.has_mfcc = get_mfcc
 
@@ -159,11 +159,18 @@ class TIMITDataset(Dataset):
                         temp_y = phonetic_transcription_file.read()
                         temp_y = TIMITDataset.parse_phoneme_string(temp_y, frame_step_seconds*TIMITDataset.signal_rate)
 
-                    # pad the phonetic transcription, if needed
-                    temp_y += [0 for i in range(len(temp_X) - len(temp_y))]
                     y.append(temp_y)
-                    assert len(temp_X) == len(temp_y)
-        return np.array(X), np.array(y)
+
+        # save the actual number of timesteps in the dataset
+        num_timesteps = [xi.shape[0] for xi in X]
+        y = np.array([np.array(yi) for yi in y])
+
+        # pad the dataset to max size
+        #X = TIMITDataset.pad_train_data(X)
+        #y = pad_dataset(y)
+
+        #X = np.reshape(X, newshape=(len(X), X[0].shape[0], X[0].shape[1]))
+        return np.array(X), y, num_timesteps
 
     @staticmethod
     def get_mfcc_from_audio(audio, signal_rate, n_mfcc, frame_length_seconds, frame_step_seconds):
@@ -177,9 +184,19 @@ class TIMITDataset(Dataset):
         mfcc_delta2 = librosa.feature.delta(mfcc, order=2)
         temp_X = np.concatenate((mfcc, mfcc_delta, mfcc_delta2)).T # so that each row is a time step
         return temp_X
-
+    
     @staticmethod
     def parse_phoneme_string(string, divisor):
+        lines = string.split('\n')[:-1] # last line in .phn files is always empty for some reason
+        temp_list = []
+        for line in lines:
+            tokens = line.split(' ')
+            label = TIMITDataset.phoneme_dict[tokens[2]]
+            temp_list.append(label)
+        return temp_list
+
+    @staticmethod
+    def parse_phoneme_string_multiple(string, divisor):
         lines = string.split('\n')[:-1] # last line in .phn files is always empty for some reason
         temp_list = []
         old_end_time = 0
@@ -197,7 +214,22 @@ class TIMITDataset(Dataset):
             old_end_time = end_time
             label = TIMITDataset.phoneme_dict[tokens[2]]
             temp_list += [label] * int(end_time - start_time)
-        return temp_list
+        return np.array(temp_list)
+
+    @staticmethod
+    def pad_train_data(X):
+        logging.debug('X[0] shape before padding: ' + str(np.shape(X[0])))
+        max_time_length = 0
+        num_features = np.shape(X[0])[1] 
+        for x in X:
+            if np.shape(x)[0] > max_time_length:
+                max_time_length = np.shape(x)[0]
+        X_padded = []
+        for x in X:
+            xi_padded = np.lib.pad(x, [(0, max_time_length - x.shape[0]), (0, 0)], mode='constant')
+            X_padded.append(xi_padded)
+        logging.debug('X[0] shape after padding: ' + str(np.shape(X_padded[0])))
+        return X_padded
 
 if __name__ == '__main__':
     c = OSXSpeakerDataset('tom')

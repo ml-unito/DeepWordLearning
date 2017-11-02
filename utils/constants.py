@@ -10,7 +10,7 @@ class Constants():
     TIMIT_DATA_FOLDER = os.path.join(DATA_FOLDER, 'timit')
     AVAILABLE_SPEAKERS = ['tom', 'allison', 'daniel', 'ava', 'lee', 'susan', 'tom-130', 'allison-130', 'daniel-130', \
                           'ava-130', 'lee-130', 'susan-130']
-    LOGGING_LEVEL = logging.DEBUG
+    LOGGING_LEVEL = logging.INFO
 
     '''A mapping from phonemes to classes, as described in Kai fu Lee and Hsiao wuen Hon,
     "Speaker-independent phone recognition using hidden markov models". Briefly, not all

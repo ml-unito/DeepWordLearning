@@ -4,17 +4,21 @@ import pickle
 import glob
 import time
 import numpy as np
+from utils.utils import array_to_sparse_tuple_1d, array_to_sparse_tuple
+from utils.utils import pad_np_arrays
+from utils.constants import Constants
 from data.dataset import TIMITDataset
 from keras.layers import Input, Bidirectional, LSTM
 from keras.models import Sequential, Model
+from keras.utils import to_categorical
 from tensorflow.contrib.rnn import stack_bidirectional_dynamic_rnn, LSTMCell
 
 
 LOAD_PICKLE = False
-NUM_LAYERS = 2
-NUM_HIDDEN = 50
+NUM_LAYERS = 5
+NUM_HIDDEN = 500
 BATCH_SIZE = 32
-NUM_EPOCHS = 100
+NUM_EPOCHS = 1000
 
 def inference():
     pass
@@ -24,19 +28,18 @@ def loss():
 
 def training():
     pass
-# TODO:
-# https://stackoverflow.com/questions/34156639/tensorflow-python-valueerror-setting-an-array-element-with-a-sequence-in-t
+
 def create_model(dataset):
     max_time_length = max([t for (t, f) in [x.shape for x in dataset.X_train]])
     num_features = dataset.X_train[0].shape[1]
-    num_classes = max(TIMITDataset.phoneme_dict.values())
+    num_classes = max(TIMITDataset.phoneme_dict.values()) + 1
     num_examples = len(dataset.X_train)
-    
+
     graph = tf.Graph()
     with graph.as_default():
-        inputs = tf.placeholder(tf.float32, shape=(BATCH_SIZE, max_time_length, num_features))
-        targets = tf.sparse_placeholder(tf.int32)
-        seq_length = tf.placeholder(tf.int32)
+        inputs = tf.placeholder(tf.float32, shape=(None, None, num_features), name='input')
+        targets = tf.sparse_placeholder(tf.int32, name='target')
+        seq_length = tf.placeholder(tf.int32, shape=[None], name='seq_length')
 
         lstm_cell_forward_list = []
         lstm_cell_backward_list = []
@@ -45,7 +48,7 @@ def create_model(dataset):
             lstm_cell_backward_list.append(LSTMCell(NUM_HIDDEN))
 
         outputs, f_state, b_state = stack_bidirectional_dynamic_rnn(lstm_cell_forward_list, lstm_cell_backward_list,
-                                        inputs, dtype=tf.float32)
+                                        inputs, dtype=tf.float32, sequence_length=seq_length)
         
         # prepare the last fully-connected layer, which weights are shared throughout the time steps
         outputs = tf.reshape(outputs, [-1, NUM_HIDDEN])
@@ -57,10 +60,13 @@ def create_model(dataset):
         fc_out = tf.matmul(outputs, W) + b
         fc_out = tf.reshape(fc_out, [BATCH_SIZE, -1, num_classes]) # Reshaping back to the original shape
         
-        loss = tf.nn.ctc_loss(targets, fc_out, seq_length)
+        # time major
+        fc_out = tf.transpose(fc_out, (1, 0, 2))
+
+        loss = tf.nn.ctc_loss(targets, fc_out, seq_length, ignore_longer_outputs_than_inputs=True)
         cost = tf.reduce_mean(loss)
 
-        optimizer = tf.train.MomentumOptimizer(0.05,
+        optimizer = tf.train.MomentumOptimizer(0.0001,
                                                0.9).minimize(cost)
 
         # Option 2: tf.nn.ctc_beam_search_decoder
@@ -80,6 +86,7 @@ def create_model(dataset):
             start = time.time()
 
             num_batches_per_epoch = int(num_examples/BATCH_SIZE)
+
             for batch in range(num_batches_per_epoch):
                 # prepare data and targets
                 start_index = batch * BATCH_SIZE
@@ -87,23 +94,70 @@ def create_model(dataset):
 
                 if end_index >= len(dataset.X_train) - 1:
                     end_index = len(dataset.X_train) - 1
-                
-                batch_seq_length = [x.shape[0] for x in dataset.X_train[start_index:end_index]]
 
-                feed = {inputs: dataset.X_train[start_index:end_index],
-                        targets: tf.one_hot(dataset.y_train[start_index:end_index], num_classes),
+                # get the data needed for the feed_dict this batch
+                batch_seq_length = [time_length for time_length in dataset.train_timesteps[start_index:end_index]]
+                batch_inputs = dataset.X_train[start_index:end_index]
+                batch_targets = dataset.y_train[start_index:end_index]
+
+                # pad both inputs and targets to max time length in the batch
+                batch_inputs = TIMITDataset.pad_train_data(batch_inputs)
+                batch_targets = pad_np_arrays(batch_targets)
+                batch_dense_shape = np.array([x for x in np.array(batch_targets).shape])
+
+                # get a sparse representation of the targets (tf.nn.ctc_loss needs it for some reason)
+                batch_indices, batch_values = array_to_sparse_tuple(np.array(batch_targets))
+
+                feed = {inputs: np.array(batch_inputs),
+                        targets: (np.array(batch_indices), np.array(batch_values), batch_dense_shape),
                         seq_length: batch_seq_length}
 
                 batch_cost, _ = session.run([cost, optimizer], feed)
-                train_cost += batch_cost*batch_size
+                train_cost += batch_cost*BATCH_SIZE
                 train_ler += session.run(ler, feed_dict=feed)*BATCH_SIZE
 
             train_cost /= num_examples
             train_ler /= num_examples
 
-            log = "Epoch "+str(curr_epoch)+", train_cost = {:.3f}, train_ler = {:.3f} time = {:.3f}"
-            print(log.format(curr_epoch+1, num_epochs, train_cost, train_ler,
+            log = "Epoch {:.0f}, train_cost = {:.3f}, train_ler = {:.3f} time = {:.3f}"
+            print(log.format(curr_epoch+1, train_cost, train_ler,
                              time.time() - start))
+
+        
+            # decode a few examples each epoch to monitor progress
+            # prepare data and targets
+            start_index = 0
+            end_index = BATCH_SIZE
+
+            # get the data needed for the feed_dict this batch
+            batch_seq_length = [time_length for time_length in dataset.train_timesteps[start_index:end_index]]
+            batch_inputs = dataset.X_train[start_index:end_index]
+            batch_targets = dataset.y_train[start_index:end_index]
+            batch_dense_shape = np.array([x for x in np.array(batch_targets).shape])
+
+            # pad both inputs and targets to max time length in the batch
+            batch_inputs = TIMITDataset.pad_train_data(batch_inputs)
+            batch_targets = pad_np_arrays(batch_targets)
+            
+            # get a sparse representation of the targets (tf.nn.ctc_loss needs it for some reason)
+            batch_indices, batch_values = array_to_sparse_tuple(np.array(batch_targets))
+
+            feed = {inputs: np.array(batch_inputs),
+                    targets: (np.array(batch_indices), np.array(batch_values), batch_dense_shape),
+                    seq_length: batch_seq_length}
+
+            d = session.run(decoded[0], feed_dict=feed)
+            dense_decoded = tf.sparse_tensor_to_dense(d, default_value=-1).eval(session=session)
+
+            for i, seq in list(enumerate(dense_decoded))[:2]:
+                seq = [s for s in seq if s != -1]
+                print(seq)
+                inverse_dict = {Constants.TIMIT_PHONEME_DICT[k] : k for k in Constants.TIMIT_PHONEME_DICT}
+                original_phoneme_transcription = ' '.join([inverse_dict[k] for k in batch_targets[i]])
+                estimated_phoneme_transcription = ' '.join([inverse_dict[k] for k in seq])
+                print('Sequence %d' %i)
+                print('Original \n%s' %original_phoneme_transcription)
+                print('Estimated \n%s' %estimated_phoneme_transcription)
 
     return 
 
@@ -126,12 +180,11 @@ if __name__ == "__main__":
         # create the dataset
         MyTimitDataset = TIMITDataset()
         MyTimitDataset.load()
-        #MyTimitDataset.to_file()
+        MyTimitDataset.to_file()
     else:
         # just load it from pickle
         filename = glob.glob("timit*.pickle")[0]
         with open(filename, "rb") as dataset_file:
             MyTimitDataset = pickle.load(dataset_file)
-    #print(timit_dataset.X_train)
-    #create_model(MyTimitDataset)
+    create_model(MyTimitDataset)
     evaluate_model()
