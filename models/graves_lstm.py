@@ -120,6 +120,9 @@ def create_model(dataset):
                 train_cost += batch_cost*BATCH_SIZE
                 train_ler += session.run(ler, feed_dict=feed)*BATCH_SIZE
 
+                if batch % 1 == 0:
+                    logging.info('Batch %d...' %batch)
+
             train_cost /= num_examples
             train_ler /= num_examples
 
