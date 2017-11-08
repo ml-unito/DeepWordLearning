@@ -99,9 +99,6 @@ def create_model(dataset):
                 start_index = random_batch_index * BATCH_SIZE
                 end_index = (random_batch_index + 1) * BATCH_SIZE 
 
-                if end_index >= len(dataset.X_train) - 1:
-                    end_index = len(dataset.X_train) - 1
-
                 # get the data needed for the feed_dict this batch
                 batch_seq_length = [time_length for time_length in dataset.train_timesteps[start_index:end_index]]
                 batch_inputs = dataset.X_train[start_index:end_index]
