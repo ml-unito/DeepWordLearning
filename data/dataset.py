@@ -172,6 +172,21 @@ class TIMITDataset(Dataset):
         #X = np.reshape(X, newshape=(len(X), X[0].shape[0], X[0].shape[1]))
         return np.array(X), y, num_timesteps
 
+    def normalize(self):
+        mean_acc = np.zeros(len(self.X_train[0][0]))
+        var_acc = np.zeros(len(self.X_train[0][0]))
+        for x in self.X_train:
+            mean_acc += np.mean(x, axis=0)
+            var_acc += np.std(x, axis=0)
+        mean_acc /= len(self.X_train)
+        var_acc /= len(self.X_train)
+        for x in self.X_train:
+            new_t = []
+            for t in x:
+                t -= mean_acc
+                t /= var_acc
+        return
+
     @staticmethod
     def get_mfcc_from_audio(audio, signal_rate, n_mfcc, frame_length_seconds, frame_step_seconds):
         mfcc = librosa.feature.mfcc(y=audio, sr=signal_rate, n_mfcc=n_mfcc,
