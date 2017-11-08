@@ -4,6 +4,7 @@ import pickle
 import glob
 import time
 import numpy as np
+import logging
 from utils.utils import array_to_sparse_tuple_1d, array_to_sparse_tuple
 from utils.utils import pad_np_arrays
 from utils.constants import Constants
@@ -14,11 +15,12 @@ from keras.utils import to_categorical
 from tensorflow.contrib.rnn import stack_bidirectional_dynamic_rnn, LSTMCell
 
 
-LOAD_PICKLE = False
-NUM_LAYERS = 5
-NUM_HIDDEN = 500
-BATCH_SIZE = 32
-NUM_EPOCHS = 1000
+LOAD_PICKLE = True
+# setting those parameters to graves' choices
+NUM_LAYERS = 2
+NUM_HIDDEN = 250 
+BATCH_SIZE = 1
+NUM_EPOCHS = 55
 
 def inference():
     pass
@@ -30,9 +32,11 @@ def training():
     pass
 
 def create_model(dataset):
+    # normalize the dataset
+    dataset.normalize()
     max_time_length = max([t for (t, f) in [x.shape for x in dataset.X_train]])
     num_features = dataset.X_train[0].shape[1]
-    num_classes = max(TIMITDataset.phoneme_dict.values()) + 1
+    num_classes = max(TIMITDataset.phoneme_dict.values()) + 2
     num_examples = len(dataset.X_train)
 
     graph = tf.Graph()
@@ -120,7 +124,7 @@ def create_model(dataset):
             train_ler /= num_examples
 
             log = "Epoch {:.0f}, train_cost = {:.3f}, train_ler = {:.3f} time = {:.3f}"
-            print(log.format(curr_epoch+1, train_cost, train_ler,
+            logging.info(log.format(curr_epoch+1, train_cost, train_ler,
                              time.time() - start))
 
         
@@ -155,9 +159,9 @@ def create_model(dataset):
                 inverse_dict = {Constants.TIMIT_PHONEME_DICT[k] : k for k in Constants.TIMIT_PHONEME_DICT}
                 original_phoneme_transcription = ' '.join([inverse_dict[k] for k in batch_targets[i]])
                 estimated_phoneme_transcription = ' '.join([inverse_dict[k] for k in seq])
-                print('Sequence %d' %i)
-                print('Original \n%s' %original_phoneme_transcription)
-                print('Estimated \n%s' %estimated_phoneme_transcription)
+                logging.info('Sequence %d' %i)
+                logging.info('Original \n%s' %original_phoneme_transcription)
+                logging.info('Estimated \n%s' %estimated_phoneme_transcription)
 
     return 
 
