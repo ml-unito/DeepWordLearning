@@ -6,7 +6,7 @@ import time
 import numpy as np
 import logging
 import random
-from utils.utils import array_to_sparse_tuple_1d, array_to_sparse_tuple
+from utils.utils import array_to_sparse_tuple_1d, array_to_sparse_tuple, get_next_batch_index
 from utils.utils import pad_np_arrays
 from utils.constants import Constants
 from data.dataset import TIMITDataset
@@ -91,12 +91,13 @@ def create_model(dataset):
             start = time.time()
 
             num_batches_per_epoch = int(num_examples/BATCH_SIZE)
-
+            available_batch_indexes = list(range(0, num_batches_per_epoch))
             for batch in range(num_batches_per_epoch):
-                # prepare data and targets
-                batch_random_index = random.randrange(0, num_batches_per_epoch)
-                start_index = batch_random_index * BATCH_SIZE
-                end_index = (batch_random_index + 1) * BATCH_SIZE 
+                random_batch_index = get_next_batch_index(available_batch_indexes)
+                available_batch_indexes.remove(random_batch_index)
+
+                start_index = random_batch_index * BATCH_SIZE
+                end_index = (random_batch_index + 1) * BATCH_SIZE 
 
                 if end_index >= len(dataset.X_train) - 1:
                     end_index = len(dataset.X_train) - 1

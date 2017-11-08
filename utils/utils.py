@@ -1,5 +1,6 @@
 import numpy as np
 import logging
+import random
 
 def pad_np_arrays(X):
     ''' Pads a list of numpy arrays. The one with maximum length will force the others to its length.'''
@@ -35,3 +36,6 @@ def array_to_sparse_tuple_1d(X):
         values.append(X[i])
     return indices, values
 
+def get_next_batch_index(possible_list):
+    i = random.randrange(0, len(possible_list))
+    return possible_list[i]
