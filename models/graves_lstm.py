@@ -5,6 +5,7 @@ import glob
 import time
 import numpy as np
 import logging
+import random
 from utils.utils import array_to_sparse_tuple_1d, array_to_sparse_tuple
 from utils.utils import pad_np_arrays
 from utils.constants import Constants
@@ -93,8 +94,9 @@ def create_model(dataset):
 
             for batch in range(num_batches_per_epoch):
                 # prepare data and targets
-                start_index = batch * BATCH_SIZE
-                end_index = (batch + 1) * BATCH_SIZE 
+                batch_random_index = random.randrange(0, num_batches_per_epoch)
+                start_index = batch_random_index * BATCH_SIZE
+                end_index = (batch_random_index + 1) * BATCH_SIZE 
 
                 if end_index >= len(dataset.X_train) - 1:
                     end_index = len(dataset.X_train) - 1
@@ -120,8 +122,9 @@ def create_model(dataset):
                 train_cost += batch_cost*BATCH_SIZE
                 train_ler += session.run(ler, feed_dict=feed)*BATCH_SIZE
 
-                if batch % 1 == 0:
-                    logging.info('Batch %d...' %batch)
+                if batch % 30 == 0:
+                    log = "Time: {:.3f}: Batch {:.0f}"
+                    logging.info(log.format(time.time() - start, batch))
 
             train_cost /= num_examples
             train_ler /= num_examples
