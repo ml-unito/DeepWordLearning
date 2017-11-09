@@ -5,6 +5,7 @@ class Constants():
     # so you have to take care to run scripts from the
     # root folder - which is DeepWordLearning/
     ROOT_FOLDER = os.path.abspath('.')
+    TRAINED_MODELS_FOLDER = os.path.join(ROOT_FOLDER, 'trained-models')
     DATA_FOLDER = os.path.join(ROOT_FOLDER, 'data')
     AUDIO_DATA_FOLDER = os.path.join(DATA_FOLDER, 'audio')
     TIMIT_DATA_FOLDER = os.path.join(DATA_FOLDER, 'timit')

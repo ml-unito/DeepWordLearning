@@ -6,6 +6,7 @@ import time
 import numpy as np
 import logging
 import random
+import os
 from utils.utils import array_to_sparse_tuple_1d, array_to_sparse_tuple, get_next_batch_index
 from utils.utils import pad_np_arrays
 from utils.constants import Constants
@@ -22,6 +23,8 @@ NUM_LAYERS = 2
 NUM_HIDDEN = 250 
 BATCH_SIZE = 1
 NUM_EPOCHS = 55
+
+ID_STRING = "graves_" + str(NUM_LAYERS) + "l_" + str(NUM_HIDDEN) + "h"
 
 def inference():
     pass
@@ -45,6 +48,8 @@ def create_model(dataset):
         inputs = tf.placeholder(tf.float32, shape=(None, None, num_features), name='input')
         targets = tf.sparse_placeholder(tf.int32, name='target')
         seq_length = tf.placeholder(tf.int32, shape=[None], name='seq_length')
+
+
 
         lstm_cell_forward_list = []
         lstm_cell_backward_list = []
@@ -85,6 +90,10 @@ def create_model(dataset):
     with tf.Session(graph=graph) as session:
         # Initializate the weights and biases
         tf.global_variables_initializer().run()
+
+        # init saver (has to be after variable initialization)
+        saver = tf.train.Saver()
+        saver.save(session, os.path.join(Constants.TRAINED_MODELS_FOLDER, ID_STRING + "_initial.ckpt"))
 
         for curr_epoch in range(NUM_EPOCHS):
             train_cost = train_ler = 0
@@ -167,6 +176,10 @@ def create_model(dataset):
                 logging.info('Original \n%s' %original_phoneme_transcription)
                 logging.info('Estimated \n%s' %estimated_phoneme_transcription)
 
+            if curr_epoch % 10 == 0:
+                saver.save(session, os.path.join(Constants.TRAINED_MODELS_FOLDER, ID_STRING + "_" + str(curr_epoch) + "e.ckpt"))
+
+        saver.save(session, os.path.join(Constants.TRAINED_MODELS_FOLDER, ID_STRING + "_final.ckpt"))
     return 
 
 def create_model_keras():
