@@ -24,7 +24,7 @@ NUM_HIDDEN = 250
 BATCH_SIZE = 1
 NUM_EPOCHS = 55
 
-ID_STRING = "graves_" + str(NUM_LAYERS) + "l_" + str(NUM_HIDDEN) + "h"
+ID_STRING = "graves_" + str(NUM_LAYERS) + "l_" + str(NUM_HIDDEN) + "h" + "_beamsearch"
 
 def inference():
     pass
@@ -79,10 +79,9 @@ def create_model(dataset):
         optimizer = tf.train.MomentumOptimizer(0.0001,
                                                0.9).minimize(cost)
 
-        # Option 2: tf.nn.ctc_beam_search_decoder
-        # (it's slower but you'll get better results)
-        decoded, log_prob = tf.nn.ctc_greedy_decoder(fc_out, seq_length)
-        
+        #decoded, log_prob = tf.nn.ctc_greedy_decoder(fc_out, seq_length)
+        decoded, log_prob tf.nn.ctc_beam_search_decoder(fc_out, seq_length)
+
         # Inaccuracy: label error rate
         ler = tf.reduce_mean(tf.edit_distance(tf.cast(decoded[0], tf.int32),
                                               targets))
