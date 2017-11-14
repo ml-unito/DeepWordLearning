@@ -80,7 +80,7 @@ def create_model(dataset):
                                                0.9).minimize(cost)
 
         #decoded, log_prob = tf.nn.ctc_greedy_decoder(fc_out, seq_length)
-        decoded, log_prob tf.nn.ctc_beam_search_decoder(fc_out, seq_length)
+        decoded, log_prob = tf.nn.ctc_beam_search_decoder(fc_out, seq_length)
 
         # Inaccuracy: label error rate
         ler = tf.reduce_mean(tf.edit_distance(tf.cast(decoded[0], tf.int32),
@@ -128,7 +128,7 @@ def create_model(dataset):
                 train_cost += batch_cost*BATCH_SIZE
                 train_ler += session.run(ler, feed_dict=feed)*BATCH_SIZE
 
-                if batch % 30 == 0:
+                if batch % 1000 == 0:
                     log = "Time: {:.3f}: Batch {:.0f}"
                     logging.info(log.format(time.time() - start, batch))
 
