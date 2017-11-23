@@ -19,28 +19,34 @@ from tensorflow.contrib.rnn import stack_bidirectional_dynamic_rnn, LSTMCell
 
 LOAD_PICKLE = True
 # setting those parameters to graves' choices
-NUM_LAYERS = 2
-NUM_HIDDEN = 250 
-BATCH_SIZE = 1
-NUM_EPOCHS = 55
-
-ID_STRING = "graves_" + str(NUM_LAYERS) + "l_" + str(NUM_HIDDEN) + "h" + "_beamsearch"
-
-def inference():
-    pass
-
-def loss():
-    pass
-
-def training():
-    pass
+NUM_LAYERS = Constants.NUM_LAYERS
+NUM_HIDDEN = Constants.NUM_HIDDEN
+BATCH_SIZE = Constants.BATCH_SIZE
+NUM_EPOCHS = Constants.NUM_EPOCHS
+VALIDATION_SIZE = Constants.VALIDATION_SIZE
+ID_STRING = Constants.ID_STRING
+OPTIMIZER_DESCR = Constants.OPTIMIZER_DESCR
 
 def create_model(dataset):
     # normalize the dataset
     dataset.normalize()
+
+    # get information about the training set
     max_time_length = max([t for (t, f) in [x.shape for x in dataset.X_train]])
     num_features = dataset.X_train[0].shape[1]
     num_classes = max(TIMITDataset.phoneme_dict.values()) + 2
+
+    # get a validation set
+    randomizer = np.arange(len(dataset.X_train))
+    np.random.shuffle(randomizer)
+    dataset.X_train = dataset.X_train[randomizer]
+    dataset.train_timesteps = np.array(dataset.train_timesteps)[randomizer].tolist()
+    dataset.X_val = dataset.X_train[:VALIDATION_SIZE]
+    dataset.y_val = dataset.y_train[:VALIDATION_SIZE]
+    dataset.X_train = dataset.X_train[VALIDATION_SIZE:]
+    dataset.y_train = dataset.y_train[VALIDATION_SIZE:]
+    dataset.val_timesteps = dataset.train_timesteps[:VALIDATION_SIZE]
+    dataset.train_timesteps = dataset.train_timesteps[VALIDATION_SIZE:]
     num_examples = len(dataset.X_train)
 
     graph = tf.Graph()
@@ -48,7 +54,6 @@ def create_model(dataset):
         inputs = tf.placeholder(tf.float32, shape=(None, None, num_features), name='input')
         targets = tf.sparse_placeholder(tf.int32, name='target')
         seq_length = tf.placeholder(tf.int32, shape=[None], name='seq_length')
-
 
 
         lstm_cell_forward_list = []
@@ -75,9 +80,12 @@ def create_model(dataset):
 
         loss = tf.nn.ctc_loss(targets, fc_out, seq_length, ignore_longer_outputs_than_inputs=True)
         cost = tf.reduce_mean(loss)
-
-        optimizer = tf.train.MomentumOptimizer(0.0001,
-                                               0.9).minimize(cost)
+        
+        if OPTIMIZER_DESCR == 'adam':
+            optimizer = tf.train.AdamOptimizer(0.001).minimize(cost)
+        else:
+            optimizer = tf.train.MomentumOptimizer(0.0001,
+                                                   0.9).minimize(cost)
 
         #decoded, log_prob = tf.nn.ctc_greedy_decoder(fc_out, seq_length)
         decoded, log_prob = tf.nn.ctc_beam_search_decoder(fc_out, seq_length)
@@ -119,7 +127,8 @@ def create_model(dataset):
 
                 # get a sparse representation of the targets (tf.nn.ctc_loss needs it for some reason)
                 batch_indices, batch_values = array_to_sparse_tuple(np.array(batch_targets))
-
+                
+                # run the session on the training data
                 feed = {inputs: np.array(batch_inputs),
                         targets: (np.array(batch_indices), np.array(batch_values), batch_dense_shape),
                         seq_length: batch_seq_length}
@@ -128,6 +137,7 @@ def create_model(dataset):
                 train_cost += batch_cost*BATCH_SIZE
                 train_ler += session.run(ler, feed_dict=feed)*BATCH_SIZE
 
+                
                 if batch % 1000 == 0:
                     log = "Time: {:.3f}: Batch {:.0f}"
                     logging.info(log.format(time.time() - start, batch))
@@ -135,8 +145,30 @@ def create_model(dataset):
             train_cost /= num_examples
             train_ler /= num_examples
 
-            log = "Epoch {:.0f}, train_cost = {:.3f}, train_ler = {:.3f} time = {:.3f}"
-            logging.info(log.format(curr_epoch+1, train_cost, train_ler,
+            # get information on the validation set accuracy
+            val_seq_length = dataset.val_timesteps
+            val_inputs = dataset.X_val
+            val_targets = dataset.y_val
+
+            # pad both inputs and targets to max time length in the batch
+            val_inputs = TIMITDataset.pad_train_data(val_inputs)
+            val_targets = pad_np_arrays(val_targets)
+            val_dense_shape = np.array([x for x in np.array(val_targets).shape])
+
+            # get a sparse representation of the targets (tf.nn.ctc_loss needs it for some reason)
+            val_indices, val_values = array_to_sparse_tuple(np.array(val_targets))
+            
+            # run the session on the training data
+            feed = {inputs: np.array(val_inputs),
+                    targets: (np.array(val_indices), np.array(val_values), val_dense_shape),
+                    seq_length: val_seq_length}
+
+            val_cost = session.run(cost, feed_dict=feed)
+            val_ler = session.run(ler, feed_dict=feed)*(VALIDATION_SIZE)
+
+
+            log = "Epoch {:.0f}, train_cost = {:.3f}, train_ler = {:.3f}, val_cost = {:.3f}, val_ler = {:.3f}, time = {:.3f}"
+            logging.info(log.format(curr_epoch+1, train_cost, train_ler, val_cost, val_ler,
                              time.time() - start))
 
         
@@ -157,7 +189,7 @@ def create_model(dataset):
             
             # get a sparse representation of the targets (tf.nn.ctc_loss needs it for some reason)
             batch_indices, batch_values = array_to_sparse_tuple(np.array(batch_targets))
-
+            
             feed = {inputs: np.array(batch_inputs),
                     targets: (np.array(batch_indices), np.array(batch_values), batch_dense_shape),
                     seq_length: batch_seq_length}
@@ -167,7 +199,6 @@ def create_model(dataset):
 
             for i, seq in list(enumerate(dense_decoded))[:2]:
                 seq = [s for s in seq if s != -1]
-                print(seq)
                 inverse_dict = {Constants.TIMIT_PHONEME_DICT[k] : k for k in Constants.TIMIT_PHONEME_DICT}
                 original_phoneme_transcription = ' '.join([inverse_dict[k] for k in batch_targets[i]])
                 estimated_phoneme_transcription = ' '.join([inverse_dict[k] for k in seq])
@@ -175,7 +206,7 @@ def create_model(dataset):
                 logging.info('Original \n%s' %original_phoneme_transcription)
                 logging.info('Estimated \n%s' %estimated_phoneme_transcription)
 
-            if curr_epoch % 10 == 0:
+            if curr_epoch % 5 == 0:
                 saver.save(session, os.path.join(Constants.TRAINED_MODELS_FOLDER, ID_STRING + "_" + str(curr_epoch) + "e.ckpt"))
 
         saver.save(session, os.path.join(Constants.TRAINED_MODELS_FOLDER, ID_STRING + "_final.ckpt"))
@@ -191,9 +222,6 @@ def create_model_keras():
     model.compile(loss=ctc_loss, optimizer='adam', metrics=['acc'])
     model.summary()
     return model
-
-def evaluate_model():
-    pass
 
 if __name__ == "__main__":
     if LOAD_PICKLE == False:

@@ -12,6 +12,15 @@ class Constants():
     AVAILABLE_SPEAKERS = ['tom', 'allison', 'daniel', 'ava', 'lee', 'susan', 'tom-130', 'allison-130', 'daniel-130', \
                           'ava-130', 'lee-130', 'susan-130']
     LOGGING_LEVEL = logging.INFO
+    NUM_EPOCHS = 100
+    NUM_HIDDEN = 50
+    NUM_LAYERS = 1
+    VALIDATION_SIZE = 32 
+    BATCH_SIZE = 32
+    OPTIMIZER_DESCR = "adam"
+
+    ID_STRING = "graves_" + str(NUM_LAYERS) + "l_" + str(NUM_HIDDEN) + "h_" + str(BATCH_SIZE) + "b_" + OPTIMIZER_DESCR
+
 
     '''A mapping from phonemes to classes, as described in Kai fu Lee and Hsiao wuen Hon,
     "Speaker-independent phone recognition using hidden markov models". Briefly, not all
