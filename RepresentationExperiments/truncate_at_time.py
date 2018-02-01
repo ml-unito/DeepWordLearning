@@ -5,34 +5,15 @@ if vectors obtained in such a way can be compared for similarity to conclude
 that the corresponding "heared" words are similar.
 """
 
-import pickle
-import re
 import numpy as np
 from sklearn import svm
 from sklearn.model_selection import LeaveOneOut
 
-#
-# DATA LOADING
-#
+import data_utils
 
-def extract_key(keyname):
-    match = extract_key.re.match(keyname)
-    if match == None:
-        raise "Cannot match a label in key: %s" % (keyname)
-    return match.group(1)
+# Importing data
 
-extract_key.re = re.compile(r".*/(\d+)")
-
-data = None
-with (open("activations-small.pkl", "rb")) as file:
-    data = pickle.load(file)
-
-xs = []
-ys = []
-
-for key in data.keys():
-    xs.append(data[key])
-    ys.append(extract_key(key))
+xs,ys = data_utils.load_data("../activations-small.pkl")
 
 
 # Truncating each example at time-step 27 and concatenating the features into a
@@ -57,4 +38,4 @@ for train_index, test_index in loo.split(truncated_xs):
     predicted_ys = svc.predict(truncated_xs[test_index])
     results.append(np.average(predicted_ys == ys[test_index]))
 
-np.average(results)
+print(np.average(results))
