@@ -2,7 +2,7 @@ import numpy as np
 import pickle 
 import data_utils
 
-def collapse_activations(xs, ys, thresh=0.00001):
+def collapse_activations(xs, ys, thresh=30):
     new_activations = []
     for x in xs:
         old_shape = x.shape
@@ -10,7 +10,7 @@ def collapse_activations(xs, ys, thresh=0.00001):
         x_temp = x - x_shift
         x_temp = np.delete(x_temp, -1, axis=0) 
 
-        mask = np.greater_equal(np.mean(x_temp, axis=1), thresh)
+        mask = np.greater_equal(np.linalg.norm(x_temp, ord=2, axis=1), thresh)
         avg_activation = 0
         avg_i = 0
         out = []
