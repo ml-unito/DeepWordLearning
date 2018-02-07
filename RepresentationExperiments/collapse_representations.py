@@ -15,7 +15,7 @@ def collapse_activations(xs, ys, thresh=0.00001):
         avg_i = 0
         out = []
         for i, xi in enumerate(x_temp):
-            avg_activation += xi
+            avg_activation += x[i]
             avg_i += 1
             if mask[i] == True:
                 out.append(avg_activation / avg_i)
