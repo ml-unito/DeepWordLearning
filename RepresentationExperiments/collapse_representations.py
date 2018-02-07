@@ -11,16 +11,16 @@ def collapse_activations(xs, ys, thresh=30):
         x_temp = np.delete(x_temp, -1, axis=0) 
 
         mask = np.greater_equal(np.linalg.norm(x_temp, ord=2, axis=1), thresh)
-        avg_activation = 0
-        avg_i = 0
+        avg_activation = np.zeros(x.shape[1])
+        count = 0
         out = []
         for i, xi in enumerate(x_temp):
             avg_activation += x[i]
-            avg_i += 1
+            count += 1
             if mask[i] == True:
-                out.append(avg_activation / avg_i)
-                avg_acc = 0
-                avg_i = 0
+                out.append(avg_activation / count)
+                avg_activation = np.zeros(x.shape[1])
+                count = 0
         out = np.array(out)
         #print('Old shape: {} new shape: {}'.format(old_shape, out.shape))
         new_activations.append(out)
