@@ -1,0 +1,10 @@
+table
+mug
+tree
+dog
+house
+book
+guitar
+fish
+cat
+bird
