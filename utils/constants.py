@@ -1,26 +1,27 @@
-import os, logging
+import os
+import logging
+
 
 class Constants():
-    # this actually refers to the python working dir
-    # so you have to take care to run scripts from the
-    # root folder - which is DeepWordLearning/
-    ROOT_FOLDER = os.path.abspath('.')
+    ROOT_FOLDER = os.path.dirname(
+        os.path.abspath(os.path.join(os.path.abspath(__file__), os.pardir)))
+    print(ROOT_FOLDER)
     TRAINED_MODELS_FOLDER = os.path.join(ROOT_FOLDER, 'trained-models')
     DATA_FOLDER = os.path.join(ROOT_FOLDER, 'data')
     AUDIO_DATA_FOLDER = os.path.join(DATA_FOLDER, 'audio')
     TIMIT_DATA_FOLDER = os.path.join(DATA_FOLDER, 'timit')
-    AVAILABLE_SPEAKERS = ['tom', 'allison', 'daniel', 'ava', 'lee', 'susan', 'tom-130', 'allison-130', 'daniel-130', \
+    AVAILABLE_SPEAKERS = ['tom', 'allison', 'daniel', 'ava', 'lee', 'susan', 'tom-130', 'allison-130', 'daniel-130',
                           'ava-130', 'lee-130', 'susan-130']
     LOGGING_LEVEL = logging.INFO
     NUM_EPOCHS = 100
     NUM_HIDDEN = 50
     NUM_LAYERS = 1
-    VALIDATION_SIZE = 32 
+    VALIDATION_SIZE = 32
     BATCH_SIZE = 32
     OPTIMIZER_DESCR = "adam"
 
-    ID_STRING = "graves_" + str(NUM_LAYERS) + "l_" + str(NUM_HIDDEN) + "h_" + str(BATCH_SIZE) + "b_" + OPTIMIZER_DESCR
-
+    ID_STRING = "graves_" + str(NUM_LAYERS) + "l_" + str(NUM_HIDDEN) + \
+        "h_" + str(BATCH_SIZE) + "b_" + OPTIMIZER_DESCR
 
     '''A mapping from phonemes to classes, as described in Kai fu Lee and Hsiao wuen Hon,
     "Speaker-independent phone recognition using hidden markov models". Briefly, not all
@@ -70,9 +71,11 @@ class Constants():
         'z': 39
     }
 
+
 if __name__ == '__main__':
     import operator
-    sorted_dict = sorted(Constants.TIMIT_PHONEME_DICT.items(), key=operator.itemgetter(1))
+    sorted_dict = sorted(Constants.TIMIT_PHONEME_DICT.items(),
+                         key=operator.itemgetter(1))
     old_value = 0
     new_dict_value = 0
     new_dict = {}
