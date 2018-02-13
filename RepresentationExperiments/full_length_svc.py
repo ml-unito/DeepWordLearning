@@ -1,8 +1,15 @@
-import data_utils
+from .data_utils import load_data
 import numpy as np
 from sklearn.externals import joblib
 from sklearn.model_selection import KFold
 from sklearn.svm import SVC, LinearSVC
+import pickle
+from utils.constants import Constants
+import os
+import logging
+
+TEST = False
+MAX_LEN = 80
 
 def fix_seq_length(xs, length=50):
     truncated = 0
@@ -20,8 +27,8 @@ def fix_seq_length(xs, length=50):
     print('Truncated {}; Padded {}'.format(truncated/len(xs), padded/len(xs)))
     return xs
 
-def apply_loaded_pca(xs):
-    pca = joblib.load('./pca_model.pkl')
+def apply_loaded_pca(xs, path):
+    pca = joblib.load(path)
     print('xs[0]: {}'.format(str(xs[0].shape)))
     xs = np.array([pca.transform(x) for x in xs])
     print('xs[0]: {}'.format(str(xs[0].shape)))
@@ -48,9 +55,16 @@ def train_svc(xs, ys, k = 5):
     print('SVC RBF: {}; SVC Linear: {}'.format(np.average(results_rbf), np.average(results_linear)))
         
 if __name__ == '__main__':
-    xs, ys = data_utils.load_data('/home/cerrato/activations-allspeakers.pkl')
-    max_len = np.max([x.shape[0] for x in xs])
-    xs = apply_loaded_pca(xs)
-    xs = fix_seq_length(xs, length=max_len)
-    train_svc(xs, ys)
+    logging.info('Loading pickle')
+    xs, ys = load_data(os.path.join(Constants.DATA_FOLDER, 'activations.pkl'))
+    #max_len = np.max([x.shape[0] for x in xs])
+    logging.info('Applying PCA')
+    xs = apply_loaded_pca(xs, os.path.join(Constants.DATA_FOLDER, 'pca_25.pkl'))
+    logging.info('Fixing sequence length')
+    xs = fix_seq_length(xs, length=MAX_LEN)
+    logging.info('Dumping pickle')
+    with open(os.path.join(Constants.DATA_FOLDER, 'activations-pca-truncated-'+str(MAX_LEN)+'.pkl'), 'wb') as f:
+        pickle.dump(xs, f)
+    if TEST == True:
+        train_svc(xs, ys)
     

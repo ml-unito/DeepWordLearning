@@ -5,7 +5,6 @@ import logging
 class Constants():
     ROOT_FOLDER = os.path.dirname(
         os.path.abspath(os.path.join(os.path.abspath(__file__), os.pardir)))
-    print(ROOT_FOLDER)
     TRAINED_MODELS_FOLDER = os.path.join(ROOT_FOLDER, 'trained-models')
     DATA_FOLDER = os.path.join(ROOT_FOLDER, 'data')
     AUDIO_DATA_FOLDER = os.path.join(DATA_FOLDER, 'audio')
