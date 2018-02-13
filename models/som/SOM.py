@@ -102,7 +102,7 @@ class SOM(object):
             #neuron's weightage vector and the input, and returns the
             #index of the neuron which gives the least value
             bmu_index = tf.argmin(tf.sqrt(tf.reduce_sum(
-                tf.pow(tf.sub(self._weightage_vects, tf.pack(
+                tf.pow(tf.subtract(self._weightage_vects, tf.stack(
                     [self._vect_input for i in range(m*n)])), 2), 1)),
                                   0)
 
@@ -118,30 +118,30 @@ class SOM(object):
 
             #To compute the alpha and sigma values based on iteration
             #number
-            learning_rate_op = tf.sub(1.0, tf.div(self._iter_input,
+            learning_rate_op = tf.subtract(1.0, tf.div(self._iter_input,
                                                   self._n_iterations))
-            _alpha_op = tf.mul(alpha, learning_rate_op)
-            _sigma_op = tf.mul(sigma, learning_rate_op)
+            _alpha_op = tf.multiply(alpha, learning_rate_op)
+            _sigma_op = tf.multiply(sigma, learning_rate_op)
 
             #Construct the op that will generate a vector with learning
             #rates for all neurons, based on iteration number and location
             #wrt BMU.
-            bmu_distance_squares = tf.reduce_sum(tf.pow(tf.sub(
-                self._location_vects, tf.pack(
+            bmu_distance_squares = tf.reduce_sum(tf.pow(tf.subtract(
+                self._location_vects, tf.stack(
                     [bmu_loc for i in range(m*n)])), 2), 1)
-            neighbourhood_func = tf.exp(tf.neg(tf.div(tf.cast(
+            neighbourhood_func = tf.exp(tf.negative(tf.div(tf.cast(
                 bmu_distance_squares, "float32"), tf.pow(_sigma_op, 2))))
-            learning_rate_op = tf.mul(_alpha_op, neighbourhood_func)
+            learning_rate_op = tf.multiply(_alpha_op, neighbourhood_func)
 
             #Finally, the op that will use learning_rate_op to update
             #the weightage vectors of all neurons based on a particular
             #input
-            learning_rate_multiplier = tf.pack([tf.tile(tf.slice(
+            learning_rate_multiplier = tf.stack([tf.tile(tf.slice(
                 learning_rate_op, np.array([i]), np.array([1])), [dim])
                                                for i in range(m*n)])
-            weightage_delta = tf.mul(
+            weightage_delta = tf.multiply(
                 learning_rate_multiplier,
-                tf.sub(tf.pack([self._vect_input for i in range(m*n)]),
+                tf.subtract(tf.stack([self._vect_input for i in range(m*n)]),
                        self._weightage_vects))
             new_weightages_op = tf.add(self._weightage_vects,
                                        weightage_delta)
@@ -156,7 +156,7 @@ class SOM(object):
 
 
             ##INITIALIZE VARIABLES
-            init_op = tf.initialize_all_variables()
+            init_op = tf.global_variables_initializer()
             self._sess.run(init_op)
 
     def _neuron_locations(self, m, n):
