@@ -15,21 +15,24 @@ if __name__ == '__main__':
         labels_dict = json.load(imagenet_labels_file)
 
     basepath = args[1]
-    if len(args)> 2:
-        speaker = args[2]
+    if len(args)> 3:
+        speaker = args[3]
     else:
         speaker = 'tom'
     print('Chosen speaker: '+ speaker)
 
     for key, value in labels_dict.items():
+        if int(key) < 1000:
+            continue
         # Create a new directory for the labels audio files, if needed
         target_dir = os.path.join(basepath, str(key))
         if not os.path.exists(target_dir):
             os.makedirs(target_dir)
         word_list = tokenize_label_words(value)
-        i = 0
+        i = 1000
         for word in word_list:
-            subprocess.run(['say', '-v', str(speaker), word, '-o', os.path.join(target_dir, str(i) + '.aiff'), '-r', str(130)])
+            if args[2] != 'default':
+                subprocess.run(['say', '-v', str(speaker), word, '-o', os.path.join(target_dir, str(i) + '.aiff'), '-r', str(args[2])])
+            else:
+                subprocess.run(['say', '-v', str(speaker), word, '-o', os.path.join(target_dir, str(i) + '.aiff')])
             i += 1
-
-
