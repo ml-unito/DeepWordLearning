@@ -86,6 +86,9 @@ def get_model_output(filename, labels_list):
             activations = {}
             for idx, filename in enumerate(glob.glob(os.path.join(Constants.AUDIO_DATA_FOLDER), '/*wav*/*.wav')):
                 name = filename.split('/')[-2:]
+                if int(name[-1]) < 1000:
+                    continue
+                print(name[-1])
                 name = '/'.join(name)
                 name = name.replace('.wav', '')
                 if idx % 50 == 0:
