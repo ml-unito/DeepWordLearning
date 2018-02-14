@@ -10,8 +10,10 @@ import numpy as np
 ACTIVATIONS_PATH = os.path.join(Constants.DATA_FOLDER, 'activations-pca-truncated-80.pkl')
 
 if __name__ == '__main__':
-    audio_som = SOM(30, 20, 2000)
+    audio_som = SOM(30, 20, 2000,
+        checkpoint_dir=os.path.join(Constants.DATA_FOLDER, 'audio_som_10'))
     logging.info('Loading pickle')
     activations = load_from_pickle(ACTIVATIONS_PATH)
     activations = [np.ravel(x) for x in activations]
+    logging.info('Training som')
     audio_som.train(activations)

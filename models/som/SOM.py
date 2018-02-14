@@ -18,6 +18,7 @@
 import tensorflow as tf
 import numpy as np
 import math
+import os
 
 class SOM(object):
     """
@@ -202,7 +203,8 @@ class SOM(object):
 
           # Store the trained model
           saver = tf.train.Saver()
-
+          if not os.path.exists(self.checkpoint_dir):
+              os.makedirs(self.checkpoint_dir)
           saver.save(self._sess,self.checkpoint_dir + 'model.ckpt',1)
 
 

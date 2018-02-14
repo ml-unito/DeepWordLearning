@@ -124,12 +124,13 @@ if __name__ == '__main__':
         if len(line)>2:
           inputs[i] = (np.array(line.split(',')[1:])).astype(np.float)
           nameInputs.append((line.split(',')[0]).split('/')[6])
+          print(nameInputs)
           i = i+1
 
   prototipi = classPrototype(inputs,nameInputs)
 
   #get the 20x30 SOM or train a new one (if the folder does not contain the model)
-  som = SOM(20, 30, lenExample, checkpoint_dir= './VisualModel10classes/', n_iterations=20,sigma=4.0)
+  som = SOM(20, 30, lenExample, checkpoint_dir= './AudioModel10classes/', n_iterations=20,sigma=4.0)
 
   loaded = som.restore_trained()
   if not loaded:
