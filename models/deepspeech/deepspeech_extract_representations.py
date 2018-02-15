@@ -12,6 +12,7 @@ from tensorflow.python.platform import gfile
 from tensorflow.core.framework import graph_pb2
 from deepspeech.utils import audioToInputVector
 from utils import Constants
+from utils.utils import to_csv
 import scipy.io.wavfile as wav
 import pickle
 import os
@@ -73,8 +74,7 @@ def test_model(deepspeech_model):
 
         i += 1
 
-
-def get_model_output(filename, labels_list):
+def get_model_output_10_classes(filename):
     with tf.gfile.GFile(filename, 'rb') as f:
         graph_def = tf.GraphDef()
         graph_def.ParseFromString(f.read())
@@ -83,11 +83,13 @@ def get_model_output(filename, labels_list):
         tensors_and_ops = tf.import_graph_def(graph_def, name='')
         with tf.Session(graph=graph) as sess:
             output_op = graph.get_operation_by_name('Minimum_3').outputs[0]
-            activations = {}
-            for idx, filename in enumerate(glob.glob(os.path.join(Constants.AUDIO_DATA_FOLDER), '/*wav*/*.wav')):
+            xs = []
+            ys = []
+            for idx, filename in enumerate(glob.glob(os.path.join(Constants.AUDIO_DATA_FOLDER, '*wav*', '*.wav'))):
                 name = filename.split('/')[-2:]
-                if int(name[-1]) < 1000:
+                if int(name[-1].strip('.wav')) < 1000:
                     continue
+                y = name[-1].strip('.wav')
                 print(name[-1])
                 name = '/'.join(name)
                 name = name.replace('.wav', '')
@@ -97,10 +99,37 @@ def get_model_output(filename, labels_list):
                 x = audioToInputVector(audio, fs, N_FEATURES, N_CONTEXT)
                 out = sess.run(output_op, {'input_node:0': [
                                x], 'input_lengths:0': [len(x)]})
-                activations[name] = out
-            pickle.dump(activations, open('activations.pkl', 'wb'),
-                        protocol=pickle.HIGHEST_PROTOCOL)
-            act_load = pickle.load(open('activations.pkl', 'rb'))
+                xs.append(out)
+                ys.append(y)
+            to_csv(xs, ys, os.path.join(Constants.DATA_FOLDER, 'audio100classes.csv'))
+
+
+def get_model_output_100_classes(filename):
+    with tf.gfile.GFile(filename, 'rb') as f:
+        graph_def = tf.GraphDef()
+        graph_def.ParseFromString(f.read())
+
+    with tf.Graph().as_default() as graph:
+        tensors_and_ops = tf.import_graph_def(graph_def, name='')
+        with tf.Session(graph=graph) as sess:
+            output_op = graph.get_operation_by_name('Minimum_3').outputs[0]
+            xs = []
+            ys = []
+            for idx, filename in enumerate(glob.glob(os.path.join(Constants.AUDIO_DATA_FOLDER, '*wav*', '*.wav'))):
+                name = filename.split('/')[-2:]
+                y = name[-1].strip('.wav')
+                print(name[-1])
+                name = '/'.join(name)
+                name = name.replace('.wav', '')
+                if idx % 50 == 0:
+                    print(name)
+                fs, audio = wav.read(filename)
+                x = audioToInputVector(audio, fs, N_FEATURES, N_CONTEXT)
+                out = sess.run(output_op, {'input_node:0': [
+                               x], 'input_lengths:0': [len(x)]})
+                xs.append(out)
+                ys.append(y)
+            to_csv(xs, ys, os.path.join(Constants.DATA_FOLDER, 'audio10classes.csv'))
 
 
 if __name__ == '__main__':
@@ -122,4 +151,4 @@ if __name__ == '__main__':
 
     #deepspeech_model = create_model()
     # test_model(deepspeech_model)
-    get_model_output(args.model)
+    get_model_output_10_classes(args.model)

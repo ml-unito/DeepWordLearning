@@ -2,6 +2,8 @@ import numpy as np
 import logging
 import random
 import pickle
+import re
+import csv
 
 def pad_np_arrays(X):
     ''' Pads a list of numpy arrays. The one with maximum length will force the others to its length.'''
@@ -45,3 +47,39 @@ def load_from_pickle(path):
     with open(path, 'rb') as f:
         activations = pickle.load(f)
     return activations
+
+def extract_key(keyname):
+    extract_key.re = re.compile(r".*/(\d+)")
+    match = extract_key.re.match(keyname)
+    if match == None:
+        raise "Cannot match a label in key: %s" % (keyname)
+    return match.group(1)
+
+def load_data(filename):
+    """
+    Loads the data from filename and parses the keys inside
+    it to retrieve the labels. Returns a pair xs,ys representing
+    the data and the labels respectively
+    """
+    data = None
+    with (open(filename, "rb")) as file:
+        data = pickle.load(file)
+
+    xs = []
+    ys = []
+
+    for key in data.keys():
+        xs.append(data[key])
+        #ys.append(extract_key(key))
+        ys.append(key)
+
+    return (xs,ys)
+
+def to_csv(xs, ys, path):
+    with open(path, 'wb') as csvfile:
+        writer = csv.writer(csvfile)
+        for x, y in zip(xs, ys):
+            x = np.ravel(x)
+            string = np.array2string(x, separator=',').strip('[]')
+            string += ',' + y + '\n'
+        writer.writerow(string)

@@ -8,6 +8,7 @@ import logging
 import numpy as np
 
 ACTIVATIONS_PATH = os.path.join(Constants.DATA_FOLDER, 'activations-pca-truncated-80.pkl')
+csv_path = os.path.join(Constants.DATA_FOLDER, 'audio-training-10classes.csv')
 
 if __name__ == '__main__':
     audio_som = SOM(30, 20, 2000,
