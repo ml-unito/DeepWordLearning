@@ -11,7 +11,7 @@ import numpy as np
 from tensorflow.python.platform import gfile
 from tensorflow.core.framework import graph_pb2
 from deepspeech.utils import audioToInputVector
-from utils import Constants
+from utils.constants import Constants
 from utils.utils import to_csv
 import scipy.io.wavfile as wav
 import pickle
