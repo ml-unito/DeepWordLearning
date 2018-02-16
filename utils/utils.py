@@ -76,7 +76,7 @@ def load_data(filename):
     return (xs,ys)
 
 def to_csv(xs, ys, path):
-    with open(path, 'wb') as csvfile:
+    with open(path, 'w') as csvfile:
         writer = csv.writer(csvfile)
         for x, y in zip(xs, ys):
             x = np.ravel(x)
