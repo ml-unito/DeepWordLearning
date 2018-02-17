@@ -18,7 +18,7 @@
 from matplotlib import pyplot as plt
 import numpy as np
 from colour import Color
-from SOM import SOM
+from .SOM import SOM
 import os
 import math
 import random
