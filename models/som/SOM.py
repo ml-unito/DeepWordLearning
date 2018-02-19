@@ -182,15 +182,15 @@ class SOM(object):
         with self._sess:
           #Training iterations
           for iter_no in range(self._n_iterations):
+              if iter_no % 10 == 0:
+                  print('Iteration {}'.format(iter_no))
               #Train with each vector one by one
               count = 0
               for input_vect in input_vects:
-                  print(str(iter_no)+'---'+str(count))
                   count = count + 1
                   self._sess.run(self._training_op,
                                  feed_dict={self._vect_input: input_vect,
                                             self._iter_input: iter_no})
-
           #Store a centroid grid for easy retrieval later on
           centroid_grid = [[] for i in range(self._m)]
           self._weightages = list(self._sess.run(self._weightage_vects))
