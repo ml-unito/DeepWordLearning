@@ -29,7 +29,7 @@ def apply_pca(xs, n_components=25):
     xs = [pca.transform(x) for x in xs]
     print('xs[0]: {}'.format(str(xs[0].shape)))
     return xs
-    
+
 def pad_np_arrays(X):
     ''' Pads a list of numpy arrays. The one with maximum length will force the others to its length.'''
     logging.debug('Shape of first example before padding: ' + str(X[0].shape))
@@ -100,13 +100,17 @@ def load_data(filename):
 
     return (xs,ys)
 
-def to_csv(xs, ys, path):
+def to_csv(xs, ys, path, filename_list=None):
     np.set_printoptions(threshold=np.inf)
     with open(path, 'w') as csvfile:
+        i = 0
         for x, y in zip(xs, ys):
             string = np.array2string(x, separator=',').strip('[]').replace('\n', '').replace('\r', '')
+            if filename_list != None:
+                string = filename_list[i] + ',' + string
             string += string + ',' + str(y) + '\n'
             csvfile.write(string)
+            i += 1
     np.set_printoptions(threshold=1000)
 
 def from_csv(path):
@@ -120,3 +124,18 @@ def from_csv(path):
             xs.append(x)
             ys.append(y)
     return xs, ys
+
+def from_csv_with_filenames(path):
+    xs = []
+    ys = []
+    filenames = []
+    with open(path, 'r') as csvfile:
+        reader = csv.reader(csvfile)
+        for row in reader:
+            x = np.asfarray(row[1:-1])
+            y = row[-1]
+            filename = row[0]
+            xs.append(x)
+            ys.append(y)
+            filenames.append(filename)
+    return xs, ys, filenames

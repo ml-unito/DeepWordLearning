@@ -85,6 +85,7 @@ def get_model_output_10_classes(filename):
             output_op = graph.get_operation_by_name('Minimum_3').outputs[0]
             xs = []
             ys = []
+            filename_list = []
             for idx, filename in enumerate(glob.glob(os.path.join(Constants.AUDIO_DATA_FOLDER, '*wav*', '*.wav'))):
                 name = filename.split('/')[-2:]
                 if int(name[-1].strip('.wav')) < 1000:
@@ -92,6 +93,7 @@ def get_model_output_10_classes(filename):
                 y = name[-1].strip('.wav')
                 name = '/'.join(name)
                 name = name.replace('.wav', '')
+                filename_list.append(name)
                 if idx % 50 == 0:
                     print(name)
                 fs, audio = wav.read(filename)
@@ -103,8 +105,8 @@ def get_model_output_10_classes(filename):
             xs = fix_seq_length(xs, length=20)
             xs = apply_pca(xs, n_components=25)
             xs = np.array([np.ravel(x) for x in xs])
-            to_csv(xs, ys, os.path.join(Constants.DATA_FOLDER, 'audio10classes.csv'))
-
+            to_csv(xs, ys, os.path.join(Constants.DATA_FOLDER, 'audio10classes.csv'),
+                   filename_list=filename_list)
 
 def get_model_output_100_classes(filename):
     with tf.gfile.GFile(filename, 'rb') as f:
