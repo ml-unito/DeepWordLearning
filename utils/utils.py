@@ -4,6 +4,7 @@ import random
 import pickle
 import re
 import csv
+import sys
 from sklearn.decomposition import PCA
 
 def fix_seq_length(xs, length=50):
@@ -105,10 +106,12 @@ def to_csv(xs, ys, path, filename_list=None):
     with open(path, 'w') as csvfile:
         i = 0
         for x, y in zip(xs, ys):
-            string = np.array2string(x, separator=',').strip('[]').replace('\n', '').replace('\r', '')
+            string = ""
+            for xi in x:
+                string = string + str(xi) + ','
             if filename_list != None:
                 string = filename_list[i] + ',' + string
-            string += string + ',' + str(y) + '\n'
+            string = string + ',' + str(y) + '\n'
             csvfile.write(string)
             i += 1
     np.set_printoptions(threshold=1000)
@@ -129,13 +132,29 @@ def from_csv_with_filenames(path):
     xs = []
     ys = []
     filenames = []
-    with open(path, 'r') as csvfile:
-        reader = csv.reader(csvfile)
-        for row in reader:
-            x = np.asfarray(row[1:-1])
-            y = row[-1]
-            filename = row[0]
-            xs.append(x)
-            ys.append(y)
-            filenames.append(filename)
+    with open(path, newline='') as csvfile:
+        for line in csvfile:
+            l = line.split(',')
+            print(l[1:-1])
+            xs.append(np.asfarray(l[1:-1]))
+            ys.append(l[-1])
+            filenames.append(l[0])
+    return xs, ys, filenames
+
+    #    reader = csv.reader(csvfile)
+    #    for i, row in enumerate(reader):
+    #        x = []
+    #        for el in row[1:-1]:
+    #            try:
+    #                print(el)
+    #                x.append(float(el))
+    #            except ValueError:
+    #                print(row[1:-1])
+    #                sys.exit(1)
+    #        x = row[1:-1]
+    #        y = row[-1]
+    #        filename = row[0]
+    #        xs.append(x)
+    #        ys.append(y)
+    #        filenames.append(filename)
     return xs, ys, filenames
