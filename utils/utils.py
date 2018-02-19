@@ -76,10 +76,22 @@ def load_data(filename):
     return (xs,ys)
 
 def to_csv(xs, ys, path):
+    np.set_printoptions(threshold=np.inf)
     with open(path, 'w') as csvfile:
-        writer = csv.writer(csvfile)
         for x, y in zip(xs, ys):
-            x = np.ravel(x)
-            string = np.array2string(x, separator=',').strip('[]')
-            string += ',' + y + '\n'
-        writer.writerow(string)
+            string = np.array2string(x, separator=',').strip('[]').replace('\n', '').replace('\r', '')
+            string += string + ',' + str(y) + '\n'
+            csvfile.write(string)
+    np.set_printoptions(threshold=1000)
+
+def from_csv(path):
+    xs = []
+    ys = []
+    with open(path, 'r') as csvfile:
+        reader = csv.reader(csvfile)
+        for row in reader:
+            x = np.asfarray(row[:-1])
+            y = row[-1]
+            xs.append(x)
+            ys.append(y)
+    return xs, ys
