@@ -28,6 +28,23 @@ N = 1000
 lenExample = 2048
 NumXClass = 10
 
+def create_color_dict(ys, colors):
+  unique_y = len(set(ys))
+  d = {}
+  assigned_colors = []
+  assigned_labels = []
+  i = 0
+  j = 0
+  while len(assigned_colors) < len(colors):
+    if colors[j] not in assigned_colors and ys[i] not in assigned_labels:
+      d[ys[i]] = colors[j]
+      assigned_colors.append(colors[j])
+      assigned_labels.append(ys[i])
+      j += 1
+      i += 1
+  print(d)
+  return d
+
 def printToFileCSV(prototipi,file):
   """
     print of the prototypes in file.csv
@@ -67,23 +84,11 @@ def showSom(som,inputs,nameInputs,count,title):
   #   classColor.append(str(c))
   ## for 10 classes:
   classColor = ['white','red','blue','cyan','yellow','green','gray','brown','orange','magenta']
-
-  iColor = 0
-
-  lenExample = len(inputs[0])
-  print(lenExample)
-
-  print(inputClass+' -- '+classColor[iColor])
+  color_dict = create_color_dict(nameInputs, classColor)
 
   for i, m in enumerate(mapped):
-    if nameInputs[i] != inputClass:
-      inputClass = nameInputs[i]
-      iColor = iColor + 1
-      print(inputClass+' -- '+classColor[iColor])
-
-
-    plt.text(m[1], m[0], str('____'), ha='center', va='center', color=classColor[iColor], alpha=0.5,
-          bbox=dict(facecolor=classColor[iColor], alpha=0.6, lw=0, boxstyle='round4'))
+    plt.text(m[1], m[0], str('____'), ha='center', va='center', color=color_dict[nameInputs[i]], alpha=0.5,
+          bbox=dict(facecolor=color_dict[nameInputs[i]], alpha=0.6, lw=0, boxstyle='round4'))
 
   ## draw of the prototypes on the map
   # for k in prototipi.keys():
