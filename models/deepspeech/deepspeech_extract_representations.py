@@ -12,7 +12,7 @@ from tensorflow.python.platform import gfile
 from tensorflow.core.framework import graph_pb2
 from deepspeech.utils import audioToInputVector
 from utils.constants import Constants
-from utils.utils import to_csv
+from utils.utils import to_csv, fix_seq_length, apply_pca
 import scipy.io.wavfile as wav
 import pickle
 import os
@@ -90,7 +90,6 @@ def get_model_output_10_classes(filename):
                 if int(name[-1].strip('.wav')) < 1000:
                     continue
                 y = name[-1].strip('.wav')
-                print(name[-1])
                 name = '/'.join(name)
                 name = name.replace('.wav', '')
                 if idx % 50 == 0:
@@ -101,7 +100,10 @@ def get_model_output_10_classes(filename):
                                x], 'input_lengths:0': [len(x)]})
                 xs.append(out)
                 ys.append(y)
-            to_csv(xs, ys, os.path.join(Constants.DATA_FOLDER, 'audio100classes.csv'))
+            xs = fix_seq_length(xs, length=20)
+            xs = apply_pca(xs, n_components=25)
+            xs = np.array([np.ravel(x) for x in xs])
+            to_csv(xs, ys, os.path.join(Constants.DATA_FOLDER, 'audio10classes.csv'))
 
 
 def get_model_output_100_classes(filename):
@@ -127,8 +129,12 @@ def get_model_output_100_classes(filename):
                 x = audioToInputVector(audio, fs, N_FEATURES, N_CONTEXT)
                 out = sess.run(output_op, {'input_node:0': [
                                x], 'input_lengths:0': [len(x)]})
+                out = np.ravel(out)
                 xs.append(out)
                 ys.append(y)
+            xs = fix_seq_length(xs, length=20)
+            xs = apply_pca(xs, n_components=25)
+            xs = np.array([np.ravel(x) for x in xs])
             to_csv(xs, ys, os.path.join(Constants.DATA_FOLDER, 'audio10classes.csv'))
 
 

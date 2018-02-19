@@ -4,7 +4,32 @@ import random
 import pickle
 import re
 import csv
+from sklearn.decomposition import PCA
 
+def fix_seq_length(xs, length=50):
+    truncated = 0
+    padded = 0
+    print('xs[0]: {}'.format(str(xs[0].shape)))
+    for i, x in enumerate(xs):
+        if length < x.shape[0]:
+            x = x[0:length][:]
+            truncated += 1
+        elif length > x.shape[0]:
+            x = np.pad(x, ((0, length - x.shape[0]), (0, 0)), mode='constant', constant_values=(0))
+            padded += 1
+        xs[i] = x
+    print('xs[0]: {}'.format(str(xs[0].shape)))
+    print('Truncated {}; Padded {}'.format(truncated/len(xs), padded/len(xs)))
+    return xs
+
+def apply_pca(xs, n_components=25):
+    pca = PCA(n_components=n_components)
+    pca.fit([xi for x in xs for xi in x])
+    print('xs[0]: {}'.format(str(xs[0].shape)))
+    xs = [pca.transform(x) for x in xs]
+    print('xs[0]: {}'.format(str(xs[0].shape)))
+    return xs
+    
 def pad_np_arrays(X):
     ''' Pads a list of numpy arrays. The one with maximum length will force the others to its length.'''
     logging.debug('Shape of first example before padding: ' + str(X[0].shape))
