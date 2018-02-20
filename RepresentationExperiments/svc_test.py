@@ -1,15 +1,11 @@
-from .data_utils import load_data
 import numpy as np
 from sklearn.externals import joblib
 from sklearn.model_selection import KFold
 from sklearn.svm import SVC, LinearSVC
-import pickle
 from utils.constants import Constants
+from utils.utils import from_csv_with_filenames
 import os
 import logging
-
-TEST = False
-MAX_LEN = 80
 
 def fix_seq_length(xs, length=50):
     truncated = 0
@@ -49,22 +45,15 @@ def train_svc(xs, ys, k = 5):
         print('Fitting linear...')
         linear.fit(flat_xs[train_i], ys[train_i])
         pred = rbf.predict(flat_xs[test_i])
-        results_rbf.append(np.average(pred == ys[test_index]))
+        results_rbf.append(np.average(pred == ys[test_i]))
         pred = linear.predict(flat_xs[test_i])
-        results_linear.append(np.average(pred == ys[test_index]))
+        results_linear.append(np.average(pred == ys[test_i]))
     print('SVC RBF: {}; SVC Linear: {}'.format(np.average(results_rbf), np.average(results_linear)))
-        
+
 if __name__ == '__main__':
     logging.info('Loading pickle')
-    xs, ys = load_data(os.path.join(Constants.DATA_FOLDER, 'activations.pkl'))
-    #max_len = np.max([x.shape[0] for x in xs])
-    logging.info('Applying PCA')
-    xs = apply_loaded_pca(xs, os.path.join(Constants.DATA_FOLDER, 'pca_25.pkl'))
-    logging.info('Fixing sequence length')
-    xs = fix_seq_length(xs, length=MAX_LEN)
-    logging.info('Dumping pickle')
-    with open(os.path.join(Constants.DATA_FOLDER, 'activations-pca-truncated-'+str(MAX_LEN)+'.pkl'), 'wb') as f:
-        pickle.dump(xs, f)
-    if TEST == True:
-        train_svc(xs, ys)
-    
+    #xs, ys = load_data(os.path.join(Constants.DATA_FOLDER, 'activations.pkl'))
+    xs, ys, filenames = from_csv_with_filenames(
+                        os.path.join(Constants.DATA_FOLDER, '10classes', 'audio_data.csv')
+                        )
+    train_svc(xs, ys)
