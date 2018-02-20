@@ -35,7 +35,6 @@ def train_svc(xs, ys, k = 5):
     results_rbf = []
     results_linear = []
     flat_xs = np.array([x.ravel() for x in xs])
-    print([x.shape for x in flat_xs][0:50])
     ys = np.array(ys)
     for train_i, test_i in kf.split(flat_xs):
         rbf = SVC()
