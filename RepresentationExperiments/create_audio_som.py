@@ -5,7 +5,6 @@ from utils.utils import load_data
 from utils.utils import from_csv_with_filenames
 from utils.constants import Constants
 from sklearn.externals import joblib
-from .full_length_svc import apply_loaded_pca
 import os
 import logging
 import numpy as np
