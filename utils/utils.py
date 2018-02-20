@@ -111,7 +111,7 @@ def to_csv(xs, ys, path, filename_list=None):
                 string = string + str(xi) + ','
             if filename_list != None:
                 string = filename_list[i] + ',' + string
-            string = string + ',' + str(y) + '\n'
+            string = string + str(y) + '\n'
             csvfile.write(string)
             i += 1
     np.set_printoptions(threshold=1000)
@@ -135,7 +135,6 @@ def from_csv_with_filenames(path):
     with open(path, newline='') as csvfile:
         for line in csvfile:
             l = line.split(',')
-            print(l[1:-1])
             xs.append(np.asfarray(l[1:-1]))
             ys.append(l[-1])
             filenames.append(l[0])

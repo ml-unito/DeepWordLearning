@@ -63,7 +63,7 @@ def printToFileCSV(prototipi,file):
 
   f.close()
 
-def showSom(som,inputs,nameInputs,count,title):
+def showSom(som,inputs,nameInputs,count,title, filenames=None):
   """
     build of the map with the color associated to the different classes
   """
@@ -86,9 +86,15 @@ def showSom(som,inputs,nameInputs,count,title):
   classColor = ['white','red','blue','cyan','yellow','green','gray','brown','orange','magenta']
   color_dict = create_color_dict(nameInputs, classColor)
 
-  for i, m in enumerate(mapped):
-    plt.text(m[1], m[0], str('____'), ha='center', va='center', color=color_dict[nameInputs[i]], alpha=0.5,
+  if filenames == None:
+    for i, m in enumerate(mapped):
+      plt.text(m[1], m[0], str('____'), ha='center', va='center', color=color_dict[nameInputs[i]], alpha=0.5,
           bbox=dict(facecolor=color_dict[nameInputs[i]], alpha=0.6, lw=0, boxstyle='round4'))
+  else:
+    for i, m in enumerate(mapped):
+      plt.text(m[1], m[0], str('_{:03d}_'.format(i)), ha='center', va='center', color=color_dict[nameInputs[i]], alpha=0.5,
+          bbox=dict(facecolor=color_dict[nameInputs[i]], alpha=0.6, lw=0, boxstyle='round4'))
+      print('{}: {}'.format(i, filenames[i]))
 
   ## draw of the prototypes on the map
   # for k in prototipi.keys():
