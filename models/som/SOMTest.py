@@ -22,6 +22,8 @@ from .SOM import SOM
 import os
 import math
 import random
+import matplotlib.patches as mpatches
+
 
 fInput = 'input10classes/VisualInputTrainingSet.csv'
 N = 1000
@@ -96,12 +98,24 @@ def showSom(som,inputs,nameInputs,count,title, filenames=None):
           bbox=dict(facecolor=color_dict[nameInputs[i]], alpha=0.6, lw=0, boxstyle='round4'))
       print('{}: {}'.format(i, filenames[i]))
 
+
   ## draw of the prototypes on the map
   # for k in prototipi.keys():
   #     [BMUi, BMUpos] = som.get_BMU(prototipi[k])
   #     plt.text(BMUpos[1], BMUpos[0], str(k), ha='center', va='center',
   #             bbox=dict(facecolor='white', alpha=0.9, lw=0))
   plt.draw()
+
+
+  # draw a legend
+  plt.figure()
+  reverse_color_dict = {v: k for k, v in color_dict.items()}
+  patch_list = []
+  for i in range(len(classColor)):
+      patch = mpatches.Patch(color=classColor[i], label=reverse_color_dict[classColor[i]])
+      patch_list.append(patch)
+  plt.legend(handles=patch_list)
+
   plt.show()
   return plt
 

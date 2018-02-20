@@ -72,7 +72,8 @@ def train_svc_report_errors(xs, ys, filenames, k=5):
         print('Fold {}, wrong ones: '.format(j))
         for i, is_correct in enumerate(pred == ys[test_i]):
             if not is_correct:
-                print(filenames[test_i[i]])
+                print('{}: was predicted {}'
+                      .format(filenames[test_i[i]], pred[i]))
         j += 1
     print('SVC RBF: {}; SVC Linear: {}'.format(np.average(results_rbf), np.average(results_linear)))
 
