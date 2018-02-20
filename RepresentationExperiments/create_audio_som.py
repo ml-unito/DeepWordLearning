@@ -12,7 +12,7 @@ import numpy as np
 
 ACTIVATIONS_PATH = os.path.join(Constants.DATA_FOLDER, 'activations-10classes.pkl')
 csv_path = os.path.join(Constants.DATA_FOLDER, '10classes', 'audio_data_30t.csv')
-LOAD = False
+LOAD = True
 
 if __name__ == '__main__':
     logging.info('Loading data')

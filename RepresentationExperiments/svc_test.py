@@ -7,6 +7,8 @@ from utils.utils import from_csv_with_filenames
 import os
 import logging
 
+OUTPUT_ERRORS = True
+
 def fix_seq_length(xs, length=50):
     truncated = 0
     padded = 0
@@ -49,10 +51,36 @@ def train_svc(xs, ys, k = 5):
         results_linear.append(np.average(pred == ys[test_i]))
     print('SVC RBF: {}; SVC Linear: {}'.format(np.average(results_rbf), np.average(results_linear)))
 
+def train_svc_report_errors(xs, ys, filenames, k=5):
+    kf = KFold(n_splits=5)
+    results_rbf = []
+    results_linear = []
+    flat_xs = np.array([x.ravel() for x in xs])
+    ys = np.array(ys)
+    j = 0
+    for train_i, test_i in kf.split(flat_xs):
+        rbf = SVC()
+        linear = LinearSVC()
+        print('Fitting RBF...')
+        rbf.fit(flat_xs[train_i], ys[train_i])
+        print('Fitting linear...')
+        linear.fit(flat_xs[train_i], ys[train_i])
+        pred = rbf.predict(flat_xs[test_i])
+        results_rbf.append(np.average(pred == ys[test_i]))
+        pred = linear.predict(flat_xs[test_i])
+        results_linear.append(np.average(pred == ys[test_i]))
+        print('Fold {}, wrong ones: '.format(j))
+        for i, is_correct in enumerate(pred == ys[test_i]):
+            if not is_correct:
+                print(filenames[test_i[i]])
+        j += 1
+    print('SVC RBF: {}; SVC Linear: {}'.format(np.average(results_rbf), np.average(results_linear)))
+
+
 if __name__ == '__main__':
     logging.info('Loading pickle')
     #xs, ys = load_data(os.path.join(Constants.DATA_FOLDER, 'activations.pkl'))
     xs, ys, filenames = from_csv_with_filenames(
                         os.path.join(Constants.DATA_FOLDER, '10classes', 'audio_data.csv')
                         )
-    train_svc(xs, ys)
+    train_svc_report_errors(xs, ys, filenames)
