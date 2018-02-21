@@ -25,6 +25,7 @@ import os
 import math
 import random
 from numpy.linalg import norm
+from utils.constants import Constants
 
 
 dimN = 20
@@ -59,6 +60,7 @@ def getInputClass(className,fileInput):
             break
     return inputC
 
+
 def getRandomInputClass(className,fileInput):
     """
         Return a random input from the class className
@@ -85,11 +87,18 @@ def getAllInputClass(className,fileInput):
     for l in f:
         lSplit = l.split(',')
         if className in lSplit[0]:
-            print (lSplit[0])
             inputC.append(np.array(lSplit[1:]).astype(float))
     f.close()
     return inputC
 
+def getAllInputClassAudio(className, file_path):
+    f = open(file_path,'r')
+    inputC = None
+    for l in f:
+        lSplit = l.split(',')
+        if className in lSplit[-1]:
+            inputC = np.array(lSplit[:-1]).astype(float)
+    return inputC
 
 def showSomActivations(activations,posActivations,count,title):
     """
@@ -647,24 +656,15 @@ def getBMUonce(SOMV,inputsV):
     return bmus
 
 
-def iterativeTraining():
+def iterativeTraining(img_som_path, audio_som_path):
     """
         calculate the taxonomic factor increasing the number of couples
         used for the training of the hebbian connections
     """
-    classesIn = open('./utility/labels10classes.txt','r')
-    classes = []
-    for c in classesIn:
-        classes.append(c[:-1])
+    classes = list(range(0,10))
 
-    classes.sort()
-
-    modelDirSomV = './VisualModel10classes/'
-    modelDirSomU = './AuditoryModel10classes/'
-
-    SOMV = restoreSOM(modelDirSomV,2048)
-    SOMU = restoreSOM(modelDirSomU,10)
-
+    SOMV = restoreSOM(img_som_path,2048)
+    SOMU = restoreSOM(audio_som_path,500)
 
     INPUTV = dict()
     INPUTU = dict()
@@ -672,12 +672,8 @@ def iterativeTraining():
     tinputV = dict()
 
     for c in classes:
-        print(c)
-        INPUTV[c] = getAllInputClass(c,'./input10classes/VisualInputTestSet.csv')
-        INPUTU[c] = getAllInputClass(c,'./input10classes/auditoryInput.csv')
-
-
-
+        INPUTV[c] = getAllInputClass(c, Constants.DATA_FOLDER + './10classes/VisualInputTestSet.csv')
+        INPUTU[c] = getAllInputClassAudio(c, Constants.DATA_FOLDER + './10classes/audio_data_40t.csv')
 
     activations = getActivationsOnce(SOMV,SOMU,INPUTV,INPUTU)
 
@@ -716,7 +712,7 @@ def iterativeTraining():
                 i9 = np.random.randint(100)
                 tinputV[classes[9]] = activations['V'][classes[9]][i9][0]
                 for c in classes:
-                    tinputU[c] = activations['U'][c][0][0]
+                    tinputU[c] = activations['U'][c][:][0]
 
                 S = updatesynapsesPreLoad(S,classes,SOMU,SOMV,tinputV,tinputU,i,niter-1)
 
