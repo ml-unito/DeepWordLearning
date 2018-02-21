@@ -91,6 +91,7 @@ def get_model_output_10_classes(filename):
                 if int(name[-1].strip('.wav')) < 1000:
                     continue
                 y = name[-1].strip('.wav')
+                y = str(int(y) - 1000)
                 name = '/'.join(name)
                 name = name.replace('.wav', '')
                 filename_list.append(name)
