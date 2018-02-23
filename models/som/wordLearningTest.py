@@ -17,7 +17,7 @@
 
 import matplotlib
 #matplotlib.use('Agg')
-from matplotlib import pyplot as plt
+#from matplotlib import pyplot as plt
 import numpy as np
 from colour import Color
 from .SOM import SOM
@@ -86,7 +86,7 @@ def getAllInputClass(className,fileInput):
     inputC = []
     for l in f:
         lSplit = l.split(',')
-        if className in lSplit[0]:
+        if str(className) in lSplit[0]:
             inputC.append(np.array(lSplit[1:]).astype(float))
     f.close()
     return inputC
@@ -96,8 +96,8 @@ def getAllInputClassAudio(className, file_path):
     inputC = None
     for l in f:
         lSplit = l.split(',')
-        if className in lSplit[-1]:
-            inputC = np.array(lSplit[:-1]).astype(float)
+        if str(className) in lSplit[-1]:
+            inputC = np.array(lSplit[-1]).astype(float)
     return inputC
 
 def showSomActivations(activations,posActivations,count,title):
@@ -613,7 +613,6 @@ def getActivationsOnce(SOMV,SOMU,inputsV,inputsU):
     activations['U'] = dict()
     activations['V'] = dict()
     for c in inputsU.keys():
-        print('activations class '+c)
         j = 0
         activations['U'][c] = dict()
         for u in inputsU[c]:
@@ -626,7 +625,6 @@ def getActivationsOnce(SOMV,SOMU,inputsV,inputsU):
                     activations['U'][c][j][0][i] = 0.0
             j += 1
     for c in inputsV.keys():
-        print('activation class '+c)
         j = 0
         activations['V'][c] = dict()
         for v in inputsV[c]:
@@ -664,7 +662,7 @@ def iterativeTraining(img_som_path, audio_som_path):
     classes = list(range(0,10))
 
     SOMV = restoreSOM(img_som_path,2048)
-    SOMU = restoreSOM(audio_som_path,500)
+    SOMU = restoreSOM(audio_som_path,1000)
 
     INPUTV = dict()
     INPUTU = dict()
@@ -672,8 +670,9 @@ def iterativeTraining(img_som_path, audio_som_path):
     tinputV = dict()
 
     for c in classes:
-        INPUTV[c] = getAllInputClass(c, Constants.DATA_FOLDER + './10classes/VisualInputTestSet.csv')
-        INPUTU[c] = getAllInputClassAudio(c, Constants.DATA_FOLDER + './10classes/audio_data_40t.csv')
+        INPUTV[c] = getAllInputClass(c, os.path.join(Constants.DATA_FOLDER, '10classes', 'VisualInputTestSet.csv'))
+        INPUTU[c] = getAllInputClassAudio(c, os.path.join(Constants.DATA_FOLDER, '10classes', 'audio_data_40t.csv'))
+    print(INPUTV)
 
     activations = getActivationsOnce(SOMV,SOMU,INPUTV,INPUTU)
 
