@@ -259,7 +259,7 @@ def updatesynapses(S,classes,SOMU,SOMV,INPUTV,INPUTU,ite,maxIter):
     count = 0
 
     for c in classes:
-        print('updating for class '+c)
+        print('updating for class '+str(c))
 
         print('generating visual activation')
         [ATTIVAZIONIV[c],posAttivazioniV[c]] = SOMV.get_activations(INPUTV[c])
@@ -569,29 +569,23 @@ def distanceIntraClass(SOM, inputs, nameInputs):
 
     print('- ratio between the intra and inter cluster distances')
     for c in posKey:
-        print(c + ';' + str(distancesIntra[c]/distancesExtra))
+        print(str(c) + ';' + str(distancesIntra[c]/distancesExtra))
 
 
 
 
 
-def getBMUUPositions():
+def getBMUUPositions(som_path):
     """
         get the positions of the BMU in a som starting from a set of inputs
     """
-    classesIn = open('./utility/labels10classes.txt','r')
-    classes = []
-    for c in classesIn:
-        classes.append(c[:-1])
-
-    classes.sort()
+    classes = list(range(0,10))
 
     inputs = []
     for c in classes:
-        inputs.append(getRandomInputClass(c,'./input10classes/auditoryInput.csv'))
+        inputs.append(getRandomInputClass(c,os.path.join(Constants.DATA_FOLDER, 'input10classes', 'auditoryInput.csv')))
 
-    modelDirSomU = './AuditoryModel10classes/'
-    SOMU = restoreSOM(modelDirSomU,10)
+    SOMU = restoreSOM(som_path,10)
 
     mapped = SOMU.map_vects(inputs)
 
@@ -599,9 +593,6 @@ def getBMUUPositions():
 
     for i, m in enumerate(mapped):
         out[i] = [m[0],m[1]]
-        #out = np.append(out,)
-
-    print(out)
 
     return out
 
@@ -646,7 +637,7 @@ def getBMUonce(SOMV,inputsV):
     print('recupero bmus')
     bmus = dict()
     for c in inputsV.keys():
-        print('classe '+c)
+        print('classe '+str(c))
         bmus[c] = dict()
         for i in range(len(inputsV[c])):
             bmus[c][i] = SOMV.get_BMU(inputsV[c][i])[0]
@@ -672,12 +663,16 @@ def iterativeTraining(img_som_path, audio_som_path):
     for c in classes:
         INPUTV[c] = getAllInputClass(c, os.path.join(Constants.DATA_FOLDER, '10classes', 'VisualInputTestSet.csv'))
         INPUTU[c] = getAllInputClassAudio(c, os.path.join(Constants.DATA_FOLDER, '10classes', 'audio_data_40t.csv'))
-
+    
+    print('getActivationsOnce')
     activations = getActivationsOnce(SOMV,SOMU,INPUTV,INPUTU)
-
+    
+    print('getBMUonce')
     bmus = getBMUonce(SOMV,INPUTV)
 
-    posClassesU = getBMUUPositions()
+    print('getBMUUPositions')
+    # commenting this out because it does not seem to be used further in this function
+    #posClassesU = getBMUUPositions()
 
     niterRes = []
     for ni in [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]:
