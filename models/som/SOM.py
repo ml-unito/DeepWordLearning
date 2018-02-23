@@ -205,7 +205,10 @@ class SOM(object):
           saver = tf.train.Saver()
           if not os.path.exists(self.checkpoint_dir):
               os.makedirs(self.checkpoint_dir)
-          saver.save(self._sess,self.checkpoint_dir + 'model.ckpt',1)
+          saver.save(self._sess,
+                     os.path.join(self.checkpoint_dir,
+                                 'model.ckpt'),
+                     1)
 
 
     def restore_trained(self):
