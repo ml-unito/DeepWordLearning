@@ -97,7 +97,7 @@ def getAllInputClassAudio(className, file_path):
     for l in f:
         lSplit = l.split(',')
         if str(className) in lSplit[-1]:
-            inputC = np.array(lSplit[-1]).astype(float)
+            inputC = np.array(lSplit[1:-1]).astype(float)
     return inputC
 
 def showSomActivations(activations,posActivations,count,title):
@@ -672,7 +672,6 @@ def iterativeTraining(img_som_path, audio_som_path):
     for c in classes:
         INPUTV[c] = getAllInputClass(c, os.path.join(Constants.DATA_FOLDER, '10classes', 'VisualInputTestSet.csv'))
         INPUTU[c] = getAllInputClassAudio(c, os.path.join(Constants.DATA_FOLDER, '10classes', 'audio_data_40t.csv'))
-    print(INPUTV)
 
     activations = getActivationsOnce(SOMV,SOMU,INPUTV,INPUTU)
 
@@ -714,9 +713,6 @@ def iterativeTraining(img_som_path, audio_som_path):
                     tinputU[c] = activations['U'][c][:][0]
 
                 S = updatesynapsesPreLoad(S,classes,SOMU,SOMV,tinputV,tinputU,i,niter-1)
-
-
-                print(str(i)+'---'+str(niter))
 
                 #print(str(i0)+'--'+str(i1)+'--'+str(i2)+'--'+str(i3)+'--'+str(i4)+'--'+
                 #    str(i5)+'--'+str(i6)+'--'+str(i7)+'--'+str(i8)+'--'+str(i9)+'--')
