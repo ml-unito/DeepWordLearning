@@ -275,10 +275,8 @@ class SOM(object):
 
         return [min_index,self._locations[min_index]]
 
-    def get_activations(self, input_vect):
+    def get_activations(self, input_vect, tau=0.5):
       # get activations for the word learning
-
-      tau = 0.5
 
       # Quantization error:
       activations = list()
