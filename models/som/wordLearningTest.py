@@ -663,10 +663,10 @@ def iterativeTraining(img_som_path, audio_som_path):
     for c in classes:
         INPUTV[c] = getAllInputClass(c, os.path.join(Constants.DATA_FOLDER, '10classes', 'VisualInputTestSet.csv'))
         INPUTU[c] = getAllInputClassAudio(c, os.path.join(Constants.DATA_FOLDER, '10classes', 'audio_data_40t.csv'))
-    
+
     print('getActivationsOnce')
     activations = getActivationsOnce(SOMV,SOMU,INPUTV,INPUTU)
-    
+
     print('getBMUonce')
     bmus = getBMUonce(SOMV,INPUTV)
 
@@ -705,7 +705,8 @@ def iterativeTraining(img_som_path, audio_som_path):
                 i9 = np.random.randint(100)
                 tinputV[classes[9]] = activations['V'][classes[9]][i9][0]
                 for c in classes:
-                    tinputU[c] = activations['U'][c][:][0]
+                    random_sample = np.random.randint(len(list(INPUTU)))
+                    tinputU[c] = activations['U'][c][random_sample][0]
 
                 S = updatesynapsesPreLoad(S,classes,SOMU,SOMV,tinputV,tinputU,i,niter-1)
 
