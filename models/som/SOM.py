@@ -278,7 +278,7 @@ class SOM(object):
     def get_activations(self, input_vect):
       # get activations for the word learning
 
-      teta = 0.5
+      tau = 0.5
 
       # Quantization error:
       activations = list()
@@ -288,7 +288,7 @@ class SOM(object):
 
         d = (np.absolute(input_vect-self._weightages[i])).tolist()
 
-        activations.append(math.exp(-(np.sum(d)/len(d))/teta))
+        activations.append(math.exp(-(np.sum(d)/len(d))/tau))
         pos_activations.append(self._locations[i])
 
       return [activations,pos_activations]
