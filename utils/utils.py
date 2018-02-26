@@ -5,7 +5,10 @@ import pickle
 import re
 import csv
 import sys
+import json
+import os
 from sklearn.decomposition import PCA
+from utils.constants import Constants
 
 def fix_seq_length(xs, length=50):
     truncated = 0
@@ -139,3 +142,21 @@ def from_csv_with_filenames(path):
             ys.append(l[-1].strip('\n'))
             filenames.append(l[0])
     return xs, ys, filenames
+
+def infer_label_10classes(label_string, labels_dict):
+    label_string = label_string.split('/')[5]
+    return labels_dict[label_string]
+
+def from_csv_visual(path):
+    f = open(path,'r')
+    labels_dict_path = os.path.join(Constants.DATA_FOLDER, 'imagenet-labels.json')
+    labels_dict = json.load(open(labels_dict_path))
+    labels_dict = {v: k for k, v in labels_dict.items()}
+    xs = []
+    ys = []
+    for l in f:
+        lSplit = l.split(',')
+        xs.append(np.array(lSplit[1:]).astype(float))
+        ys.append(infer_label_10classes(lSplit[0], labels_dict))
+    f.close()
+    return xs, ys
