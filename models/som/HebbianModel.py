@@ -28,10 +28,13 @@ class HebbianModel(object):
 
             self.activation_a = tf.placeholder(dtype=tf.float32, shape=[self.num_neurons])
             self.activation_v = tf.placeholder(dtype=tf.float32, shape=[self.num_neurons])
+            self.assigned_weights = tf.placeholder(dtype=tf.float32, shape=[self.num_neurons, self.num_neurons])
 
             self.delta = 1 - tf.exp(-self.learning_rate * tf.matmul(tf.reshape(self.activation_a, (-1, 1)), tf.reshape(self.activation_v, (1, -1))))
             new_weights = tf.add(self.weights, self.delta)
             self.training = tf.assign(self.weights, new_weights)
+
+            self.assign_op = tf.assign(self.weights, self.assigned_weights)
 
             self._sess  = tf.Session()
             init_op = tf.global_variables_initializer()
@@ -49,6 +52,7 @@ class HebbianModel(object):
                 n_presentations = {}'.format(len(input_a), len(input_v),
                                              self.n_presentations)
         with self._sess:
+            # present images to model
             for i in range(self.n_presentations):
                 print('Presentation {}'.format(i+1))
                 activation_a, _ = self.som_a.get_activations(input_a[i])
@@ -56,9 +60,19 @@ class HebbianModel(object):
                 _, d = self._sess.run([self.training, self.delta],
                                feed_dict={self.activation_a: activation_a,
                                           self.activation_v: activation_v})
-                print(d.shape)
+
+            # normalize sum of weights to 1
+            w = self._sess.run(self.weights)
+            w = w.flatten()
+            w_sum = np.sum(w)
+            w_norm = [wi / w_sum for wi in w]
+            w = np.reshape(w_norm, (self.num_neurons, self.num_neurons))
+            
+            self._sess.run(self.assign_op, feed_dict={self.assigned_weights: w})
+
             self._trained = True
 
+            # save to checkpoint_dir
             if self.checkpoint_dir != None:
                 saver = tf.train.Saver()
                 if not os.path.exists(self.checkpoint_dir):
