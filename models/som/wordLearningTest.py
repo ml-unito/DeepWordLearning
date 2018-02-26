@@ -662,7 +662,7 @@ def iterativeTraining(img_som_path, audio_som_path):
 
     for c in classes:
         INPUTV[c] = getAllInputClass(c, os.path.join(Constants.DATA_FOLDER, '10classes', 'VisualInputTestSet.csv'))
-        INPUTU[c] = getAllInputClassAudio(c, os.path.join(Constants.DATA_FOLDER, '10classes', 'audio_data_40t.csv'))
+        INPUTU[c] = getAllInputClassAudio(c, os.path.join(Constants.DATA_FOLDER, '10classes', 'audio_prototypes.csv'))
 
     print('getActivationsOnce')
     activations = getActivationsOnce(SOMV,SOMU,INPUTV,INPUTU)
