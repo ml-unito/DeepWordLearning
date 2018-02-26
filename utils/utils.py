@@ -139,21 +139,3 @@ def from_csv_with_filenames(path):
             ys.append(l[-1].strip('\n'))
             filenames.append(l[0])
     return xs, ys, filenames
-
-    #    reader = csv.reader(csvfile)
-    #    for i, row in enumerate(reader):
-    #        x = []
-    #        for el in row[1:-1]:
-    #            try:
-    #                print(el)
-    #                x.append(float(el))
-    #            except ValueError:
-    #                print(row[1:-1])
-    #                sys.exit(1)
-    #        x = row[1:-1]
-    #        y = row[-1]
-    #        filename = row[0]
-    #        xs.append(x)
-    #        ys.append(y)
-    #        filenames.append(filename)
-    return xs, ys, filenames
