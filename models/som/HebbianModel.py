@@ -29,8 +29,8 @@ class HebbianModel(object):
             self.activation_a = tf.placeholder(dtype=tf.float32, shape=[self.num_neurons])
             self.activation_v = tf.placeholder(dtype=tf.float32, shape=[self.num_neurons])
 
-            delta = 1 - tf.exp(-self.learning_rate * tf.transpose(self.activation_a) * self.activation_v)
-            new_weights = tf.add(self.weights, delta)
+            self.delta = 1 - tf.exp(-self.learning_rate * tf.matmul(tf.reshape(self.activation_a, (-1, 1)), tf.reshape(self.activation_v, (1, -1))))
+            new_weights = tf.add(self.weights, self.delta)
             self.training = tf.assign(self.weights, new_weights)
 
             self._sess  = tf.Session()
@@ -53,9 +53,10 @@ class HebbianModel(object):
                 print('Presentation {}'.format(i+1))
                 activation_a, _ = self.som_a.get_activations(input_a[i])
                 activation_v, _ = self.som_v.get_activations(input_v[i])
-                self._sess.run(self.training,
+                _, d = self._sess.run([self.training, self.delta],
                                feed_dict={self.activation_a: activation_a,
                                           self.activation_v: activation_v})
+                print(d.shape)
             self._trained = True
 
             if self.checkpoint_dir != None:
