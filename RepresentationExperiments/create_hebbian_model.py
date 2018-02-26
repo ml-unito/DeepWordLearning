@@ -2,6 +2,7 @@ from models.som.SOM import SOM
 from models.som.HebbianModel import HebbianModel
 from utils.constants import Constants
 from utils.utils import from_csv_with_filenames, from_csv_visual
+from sklearn.utils import shuffle
 import os
 
 soma_path = os.path.join(Constants.DATA_FOLDER, '10classes', 'audio_model', '')
@@ -17,6 +18,8 @@ visual_data_path = os.path.join(Constants.DATA_FOLDER,
 if __name__ == '__main__':
     a_xs, a_ys, filenames = from_csv_with_filenames(audio_data_path)
     v_xs, v_ys = from_csv_visual(visual_data_path)
+    a_xs, a_ys = shuffle(a_xs, a_ys, random_state=26)
+    v_xs, v_ys = shuffle(v_xs, v_ys, random_state=26)
     a_dim = len(a_xs[0])
     v_dim = len(v_xs[0])
     som_a = SOM(20, 30, a_dim, checkpoint_dir=soma_path)

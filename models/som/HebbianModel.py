@@ -21,7 +21,7 @@ class HebbianModel(object):
 
         with self._graph.as_default():
             self.weights = tf.Variable(
-                             tf.random_normal([self.num_neurons],
+                             tf.random_normal([self.num_neurons, self.num_neurons],
                              mean=1/self.num_neurons,
                              stddev=1/np.sqrt(1000*self.num_neurons))
                            )
@@ -29,7 +29,7 @@ class HebbianModel(object):
             self.activation_a = tf.placeholder(dtype=tf.float32, shape=[self.num_neurons])
             self.activation_v = tf.placeholder(dtype=tf.float32, shape=[self.num_neurons])
 
-            delta = 1 - tf.exp(-self.learning_rate * self.activation_a * self.activation_v)
+            delta = 1 - tf.exp(-self.learning_rate * tf.transpose(self.activation_a) * self.activation_v)
             new_weights = tf.add(self.weights, delta)
             self.training = tf.assign(self.weights, new_weights)
 
