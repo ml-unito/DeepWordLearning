@@ -30,3 +30,4 @@ if __name__ == '__main__':
                                  v_dim=v_dim, n_presentations=10,
                                  checkpoint_dir=hebbian_path)
     hebbian_model.train(a_xs[:10], v_xs[:10])
+    print(hebbian_model.get_bmu_propagate(v_xs[10]))

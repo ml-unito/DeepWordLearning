@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import os
+import sys
 
 class HebbianModel(object):
 
@@ -67,7 +68,7 @@ class HebbianModel(object):
             w_sum = np.sum(w)
             w_norm = [wi / w_sum for wi in w]
             w = np.reshape(w_norm, (self.num_neurons, self.num_neurons))
-            
+
             self._sess.run(self.assign_op, feed_dict={self.assigned_weights: w})
 
             self._trained = True
@@ -82,8 +83,51 @@ class HebbianModel(object):
                                        'model.ckpt'),
                            1)
 
+            # convert weights to numpy arrays from tf tensors
+            self.weights = self._sess.run(self.weights)
+
+    def get_bmu_propagate(self, x, source_som='v'):
+        '''
+        Get the best matching unit by propagating an input vector's activations
+        to the other SOM. More specifically, we use the synapses connected to the
+        source som's BMU to find a matching BMU in the target som.
+
+        x: input vector. Must have a compatible size with the som described in
+           'source_som' parameter
+        source_som: a string representing the source som. If 'a', the activations
+        of the audio som will be propagated to the visual one; if 'v', the opposite
+        will happen.
+        '''
+        if source_som == 'v':
+            from_som = self.som_v
+            to_som = self.som_a
+        elif source_som == 'a':
+            from_som = self.som_a
+            to_som = self.som_v
+        else:
+            raise ValueError('Wrong string for source_som parameter')
+        source_activation, _ = from_som.get_activations(x)
+        bmu_index = np.argmax(np.array(source_activation))
+        #bmu_weights = self._sess.run(source_som._weightage_vects[bmu_index]) # probably un-needed?
+        if source_som == 'v':
+            hebbian_weights = self.weights[:][bmu_index]
+        else:
+            hebbian_weights = self.weights[bmu_index][:]
+        target_activation = hebbian_weights * source_activation
+        try:
+            assert target_activation.shape[0] == (to_som._n * to_som._m)
+        except AssertionError:
+            print('Shapes do not match. target_activation: {};\
+                   som: {}'.format(target_activation.shape, to_som._n * to_som._m))
+            sys.exit(1)
+        return np.argmax(target_activation)
+
     def restore_trained(self):
         pass
 
     def evaluate(self, input_a, input_v):
         pass
+
+# some test cases. do not use as an entry point for experiments!
+if __name__ == '__main__':
+    pass
