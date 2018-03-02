@@ -1,7 +1,7 @@
 from models.som.SOM import SOM
 from models.som.HebbianModel import HebbianModel
 from utils.constants import Constants
-from utils.utils import from_csv_with_filenames, from_csv_visual
+from utils.utils import from_csv_with_filenames, from_csv_visual, from_csv
 from sklearn.utils import shuffle
 import os
 
@@ -10,13 +10,13 @@ somv_path = os.path.join(Constants.DATA_FOLDER, '10classes', 'visual_model', '')
 hebbian_path = os.path.join(Constants.DATA_FOLDER, '10classes', 'hebbian_model', '')
 audio_data_path = os.path.join(Constants.DATA_FOLDER,
                                '10classes',
-                               'audio_data.csv')
+                               'audio_prototypes.csv')
 visual_data_path = os.path.join(Constants.DATA_FOLDER,
                                 '10classes',
                                 'VisualInputTrainingSet.csv')
 
 if __name__ == '__main__':
-    a_xs, a_ys, filenames = from_csv_with_filenames(audio_data_path)
+    a_xs, a_ys = from_csv(audio_data_path)
     v_xs, v_ys = from_csv_visual(visual_data_path)
     a_xs, a_ys = shuffle(a_xs, a_ys, random_state=26)
     v_xs, v_ys = shuffle(v_xs, v_ys, random_state=26)
@@ -29,5 +29,5 @@ if __name__ == '__main__':
     hebbian_model = HebbianModel(som_a, som_v, a_dim=a_dim,
                                  v_dim=v_dim, n_presentations=10,
                                  checkpoint_dir=hebbian_path)
-    hebbian_model.train(a_xs[:10], v_xs[:10])
-    print(hebbian_model.get_bmu_propagate(v_xs[10]))
+    hebbian_model.train(a_xs, v_xs)
+    hebbian_model.evaluate(a_xs, v_xs, a_ys, v_ys, source='v')

@@ -3,6 +3,7 @@ import os
 from utils.utils import from_csv_with_filenames
 from utils.constants import Constants
 import matplotlib.pyplot as plt
+from collections import OrderedDict
 
 CSV_PATH = os.path.join(
             Constants.DATA_FOLDER,
@@ -11,16 +12,14 @@ CSV_PATH = os.path.join(
             )
 
 def get_prototypes(xs, ys):
-    prototype_distance_matrix = np.zeros((len(set(ys)), len(set(ys))))
-    # compute prototypes in dictionary d
     prototype_dict = {unique_y: [] for unique_y in set(ys)}
     for i, x in enumerate(xs):
         prototype_dict[ys[i]].append(x)
     prototype_dict = {k: np.array(prototype) for k, prototype in prototype_dict.items()}
-    for y in set(ys):
-        prototype_dict[y] = np.mean(prototype_dict[y], axis=0)
-    prototypes = np.asarray(list(prototype_dict.values())).T
-    return prototypes
+    result = OrderedDict(sorted(prototype_dict.items()))
+    for y in set(sorted(ys)):
+        result[y] = np.mean(prototype_dict[y], axis=0)
+    return result
 
 def average_prototype_distance_matrix(xs, ys, filenames):
     """

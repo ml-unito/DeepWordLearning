@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 import os
 import sys
+from RepresentationExperiments.distance_experiments import get_prototypes
 
 class HebbianModel(object):
 
@@ -86,7 +87,7 @@ class HebbianModel(object):
             # convert weights to numpy arrays from tf tensors
             self.weights = self._sess.run(self.weights)
 
-    def get_bmu_propagate(self, x, source_som='v'):
+    def get_bmus_propagate(self, x, source_som='v'):
         '''
         Get the best matching unit by propagating an input vector's activations
         to the other SOM. More specifically, we use the synapses connected to the
@@ -107,12 +108,12 @@ class HebbianModel(object):
         else:
             raise ValueError('Wrong string for source_som parameter')
         source_activation, _ = from_som.get_activations(x)
-        bmu_index = np.argmax(np.array(source_activation))
+        source_bmu_index = np.argmax(np.array(source_activation))
         #bmu_weights = self._sess.run(source_som._weightage_vects[bmu_index]) # probably un-needed?
         if source_som == 'v':
-            hebbian_weights = self.weights[:][bmu_index]
+            hebbian_weights = self.weights[:][source_bmu_index]
         else:
-            hebbian_weights = self.weights[bmu_index][:]
+            hebbian_weights = self.weights[source_bmu_index][:]
         target_activation = hebbian_weights * source_activation
         try:
             assert target_activation.shape[0] == (to_som._n * to_som._m)
@@ -120,13 +121,41 @@ class HebbianModel(object):
             print('Shapes do not match. target_activation: {};\
                    som: {}'.format(target_activation.shape, to_som._n * to_som._m))
             sys.exit(1)
-        return np.argmax(target_activation)
+        target_bmu_index = np.argmax(target_activation)
+        return source_bmu_index, target_bmu_index
 
     def restore_trained(self):
         pass
 
-    def evaluate(self, input_a, input_v):
-        pass
+    def evaluate(self, X_a, X_v, y_a, y_v, source='v'):
+        if source == 'v':
+            X_source = X_a
+            X_target = X_v
+            y_source = y_a
+            y_target = y_v
+            source_som = self.som_a
+            target_som = self.som_v
+        else:
+            X_source = X_v
+            X_target = X_a
+            y_source = y_v
+            y_target = y_a
+            source_som = self.som_v
+            target_som = self.som_a
+
+        # get reference activations
+        reference_representation = get_prototypes(X_target, y_target)
+
+        y_pred = []
+        for i, example in enumerate(X_source):
+            source_bmu, target_bmu = self.get_bmus_propagate(example, source_som=source)
+            target_activations = []
+            for j, reference_representation in enumerate(reference_representation):
+                activation = target_som.weights[target_bmu] * reference_representation
+                target_activations.append(activation)
+            y_pred.append(np.argmax(target_activations))
+
+        return np.mean(y_pred == y_source)
 
 # some test cases. do not use as an entry point for experiments!
 if __name__ == '__main__':
