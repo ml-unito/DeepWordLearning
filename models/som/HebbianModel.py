@@ -7,7 +7,7 @@ from RepresentationExperiments.distance_experiments import get_prototypes
 class HebbianModel(object):
 
     def __init__(self, som_a, som_v, a_dim, v_dim, learning_rate=10,
-                 n_presentations=1,
+                 n_presentations=1, n_classes=10,
                  checkpoint_dir=None):
         assert som_a._m == som_v._m and som_a._n == som_v._n
         self.num_neurons = som_a._m * som_a._n
@@ -17,6 +17,7 @@ class HebbianModel(object):
         self.a_dim = a_dim
         self.v_dim = v_dim
         self.n_presentations = n_presentations
+        self.n_classes = n_classes
         self.checkpoint_dir = checkpoint_dir
         self.learning_rate = learning_rate
         self._trained = False
@@ -48,15 +49,14 @@ class HebbianModel(object):
                  self.n_presentations
         input_v : same as above
         '''
-        assert len(input_a) == len(input_v) == self.n_presentations, \
+        assert len(input_a) == len(input_v) == self.n_presentations * self.n_classes, \
                'Number of training examples and number of desired presentations \
                 is incoherent. len(input_a) = {}; len(input_v) = {}; \
-                n_presentations = {}'.format(len(input_a), len(input_v),
-                                             self.n_presentations)
+                n_presentations = {}, n_classes = {}'.format(len(input_a), len(input_v),
+                                                      self.n_presentations, self.n_classes)
         with self._sess:
             # present images to model
             for i in range(self.n_presentations):
-                print('Presentation {}'.format(i+1))
                 activation_a, _ = self.som_a.get_activations(input_a[i])
                 activation_v, _ = self.som_v.get_activations(input_v[i])
                 _, d = self._sess.run([self.training, self.delta],
@@ -129,33 +129,43 @@ class HebbianModel(object):
 
     def evaluate(self, X_a, X_v, y_a, y_v, source='v'):
         if source == 'v':
-            X_source = X_a
-            X_target = X_v
-            y_source = y_a
-            y_target = y_v
-            source_som = self.som_a
-            target_som = self.som_v
-        else:
             X_source = X_v
             X_target = X_a
             y_source = y_v
             y_target = y_a
             source_som = self.som_v
             target_som = self.som_a
+        else:
+            X_source = X_a
+            X_target = X_v
+            y_source = y_a
+            y_target = y_v
+            source_som = self.som_a
+            target_som = self.som_v
 
         # get reference activations
-        reference_representation = get_prototypes(X_target, y_target)
-
+        reference_representations = get_prototypes(X_target, y_target)
         y_pred = []
-        for i, example in enumerate(X_source):
-            source_bmu, target_bmu = self.get_bmus_propagate(example, source_som=source)
-            target_activations = []
-            for j, reference_representation in enumerate(reference_representation):
-                activation = target_som.weights[target_bmu] * reference_representation
-                target_activations.append(activation)
+
+        for x, y in zip(X_source, y_source):
+            source_bmu, target_bmu = self.get_bmus_propagate(x, source_som=source)
+            target_activations = [0 for i in range(0, len(set(y_source)))]
+            for yi_target, reference_representation in reference_representations.items():
+                target_bmu_weights = np.reshape(target_som._weightages[target_bmu],
+                                               (1, -1))
+                reference_representation = np.reshape(reference_representation, (-1, 1))
+                activation = np.dot(target_bmu_weights, reference_representation)
+                # so that 'activation' is not seen as an array but as an element
+                target_activations[yi_target] = float(activation)
             y_pred.append(np.argmax(target_activations))
 
-        return np.mean(y_pred == y_source)
+        correct = 0
+        for yi, yj in zip(y_pred, y_source):
+            if yi == yj:
+                correct += 1
+        print('correct: {}' .format(correct))
+        print(y_pred)
+        return correct/len(y_pred)
 
 # some test cases. do not use as an entry point for experiments!
 if __name__ == '__main__':

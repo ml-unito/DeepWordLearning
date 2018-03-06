@@ -2,7 +2,7 @@ import numpy as np
 import os
 from utils.utils import from_csv_with_filenames
 from utils.constants import Constants
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from collections import OrderedDict
 
 CSV_PATH = os.path.join(
@@ -16,7 +16,7 @@ def get_prototypes(xs, ys):
     for i, x in enumerate(xs):
         prototype_dict[ys[i]].append(x)
     prototype_dict = {k: np.array(prototype) for k, prototype in prototype_dict.items()}
-    result = OrderedDict(sorted(prototype_dict.items()))
+    result = dict()
     for y in set(sorted(ys)):
         result[y] = np.mean(prototype_dict[y], axis=0)
     return result
