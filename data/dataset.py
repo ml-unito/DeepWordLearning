@@ -199,7 +199,7 @@ class TIMITDataset(Dataset):
         mfcc_delta2 = librosa.feature.delta(mfcc, order=2)
         temp_X = np.concatenate((mfcc, mfcc_delta, mfcc_delta2)).T # so that each row is a time step
         return temp_X
-    
+
     @staticmethod
     def parse_phoneme_string(string, divisor):
         lines = string.split('\n')[:-1] # last line in .phn files is always empty for some reason
@@ -235,7 +235,7 @@ class TIMITDataset(Dataset):
     def pad_train_data(X):
         logging.debug('X[0] shape before padding: ' + str(np.shape(X[0])))
         max_time_length = 0
-        num_features = np.shape(X[0])[1] 
+        num_features = np.shape(X[0])[1]
         for x in X:
             if np.shape(x)[0] > max_time_length:
                 max_time_length = np.shape(x)[0]
@@ -245,6 +245,12 @@ class TIMITDataset(Dataset):
             X_padded.append(xi_padded)
         logging.debug('X[0] shape after padding: ' + str(np.shape(X_padded[0])))
         return X_padded
+
+class OneHotDataset(Dataset):
+
+    def __init__(self, n_classes):
+        self.x = np.eye(n_classes)
+        self.y = np.array(list(range(n_classes)))
 
 if __name__ == '__main__':
     c = OSXSpeakerDataset('tom')
