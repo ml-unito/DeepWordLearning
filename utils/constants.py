@@ -7,6 +7,7 @@ class Constants():
         os.path.abspath(os.path.join(os.path.abspath(__file__), os.pardir)))
     TRAINED_MODELS_FOLDER = os.path.join(ROOT_FOLDER, 'trained-models')
     DATA_FOLDER = os.path.join(ROOT_FOLDER, 'data')
+    PLOT_FOLDER = os.path.join(DATA_FOLDER, 'plots')
     AUDIO_DATA_FOLDER = os.path.join(DATA_FOLDER, 'audio')
     TIMIT_DATA_FOLDER = os.path.join(DATA_FOLDER, 'timit')
     AVAILABLE_SPEAKERS = ['tom', 'allison', 'daniel', 'ava', 'lee', 'susan', 'tom-130', 'allison-130', 'daniel-130',
