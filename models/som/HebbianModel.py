@@ -73,23 +73,8 @@ class HebbianModel(object):
             # present images to model
             for i in range(len(input_a)):
                 # get activations from som
-                activation_a, _ = self.som_a.get_activations(input_a[i], tau=self.tau)
-                activation_v, _ = self.som_v.get_activations(input_v[i], tau=self.tau)
-                #print(activation_a)
-                #print(activation_v)
-
-                # normalize activation in 0~1
-                max_ = max(activation_a)
-                min_ = min(activation_a)
-                activation_a = np.array([(a - min_) / float(max_ - min_) for a in activation_a])
-                max_ = max(activation_v)
-                min_ = min(activation_v)
-                activation_v = np.array([(v - min_) / float(max_ - min_) for v in activation_v])
-                # threshold
-                idx = activation_a < self.threshold
-                activation_a[idx] = 0
-                idx = activation_v < self.threshold
-                activation_v[idx] = 0
+                activation_a, _ = self.som_a.get_activations(input_a[i], tau=self.tau, threshold=self.threshold)
+                activation_v, _ = self.som_v.get_activations(input_v[i], tau=self.tau, threshold=self.threshold)
 
                 # run training op
                 _, d = self._sess.run([self.training, self.delta],
@@ -139,19 +124,24 @@ class HebbianModel(object):
             to_som = self.som_v
         else:
             raise ValueError('Wrong string for source_som parameter')
-        source_activation, _ = from_som.get_activations(x, tau=self.tau)
+        source_activation, _ = from_som.get_activations(x, tau=self.tau, threshold=self.threshold)
         source_bmu_index = np.argmax(np.array(source_activation))
         #bmu_weights = self._sess.run(source_som._weightage_vects[bmu_index]) # probably un-needed?
-        if source_som == 'v':
-            hebbian_weights = self.weights[:][source_bmu_index]
+        #if source_som == 'a':
+        #    hebbian_weights = self.weights[:][source_bmu_index]
+        #else:
+        #    hebbian_weights = self.weights[source_bmu_index][:]
+        #target_activation = hebbian_weights * source_activation
+        source_activation = np.array(source_activation).reshape((-1, 1))
+        if source_som == 'a':
+            target_activation = np.matmul(self.weights.T, np.array(source_activation).reshape((-1, 1)))
         else:
-            hebbian_weights = self.weights[source_bmu_index][:]
-        target_activation = hebbian_weights * source_activation
+            target_activation = np.matmul(self.weights, np.array(source_activation).reshape((-1, 1)))
         try:
             assert target_activation.shape[0] == (to_som._n * to_som._m)
         except AssertionError:
             print('Shapes do not match. target_activation: {};\
-                   som: {}'.format(target_activation.shape, to_som._n * to_som._m))
+       som: {}'.format(target_activation.shape, to_som._n * to_som._m))
             sys.exit(1)
         target_bmu_index = np.argmax(target_activation)
         return source_bmu_index, target_bmu_index
@@ -159,7 +149,7 @@ class HebbianModel(object):
     def restore_trained(self):
         pass
 
-    def evaluate(self, X_a, X_v, y_a, y_v, source='v', img_path=None, tau=0.1):
+    def evaluate(self, X_a, X_v, y_a, y_v, source='v', img_path=None):
         if source == 'v':
             X_source = X_v
             X_target = X_a
@@ -197,28 +187,38 @@ class HebbianModel(object):
             y_pred.append(yi_pred)
             if img_path != None:
                 # image generation
-                if source == 'v':
+                if source == 'a':
                     hebbian_weights = self.weights[:][source_bmu]
                 else:
                     hebbian_weights = self.weights[source_bmu][:]
-                source_activation, _ = source_som.get_activations(x, tau=self.tau)
-                target_activation_true, _ = target_som.get_activations(reference_representations[y], tau=self.tau)
-                target_activation_pred, _ = target_som.get_activations(reference_representations[yi_pred], tau=self.tau)
-                propagated_activation = hebbian_weights * source_activation
 
-                fig, axis_arr = plt.subplots(2, 2)
+                source_activation, _ = source_som.get_activations(x, tau=self.tau, threshold=self.threshold)
+                target_activation_true, _ = target_som.get_activations(reference_representations[y], tau=self.tau, threshold=self.threshold)
+                target_activation_pred, _ = target_som.get_activations(reference_representations[yi_pred], tau=self.tau, threshold=self.threshold)
+                #propagated_activation = hebbian_weights * source_activation
+                if source == 'a':
+                    propagated_activation = np.matmul(self.weights.T, np.array(source_activation).reshape((-1, 1)))
+                else:
+                    propagated_activation = np.matmul(self.weights, np.array(source_activation).reshape((-1, 1)))
+
+                fig, axis_arr = plt.subplots(3, 2)
                 axis_arr[0, 0].matshow(np.array(source_activation)
                                        .reshape((source_som._m, source_som._n)))
                 axis_arr[0, 0].set_title('Source SOM activation')
                 axis_arr[0, 1].matshow(propagated_activation
                                        .reshape((source_som._m, source_som._n)))
-                axis_arr[0, 1].set_title('Propagation of source BMU')
+                axis_arr[0, 1].set_title('Propagation of activation to target')
                 axis_arr[1, 0].matshow(np.array(target_activation_true)
                                        .reshape((source_som._m, source_som._n)))
                 axis_arr[1, 0].set_title('Target SOM activation true label ({})'.format(y))
                 axis_arr[1, 1].matshow(np.array(target_activation_pred)
                                        .reshape((source_som._m, source_som._n)))
                 axis_arr[1, 1].set_title('Target SOM activation predicted label ({})'.format(yi_pred))
+                axis_arr[2, 1].matshow(np.array(hebbian_weights)
+                                       .reshape((source_som._m, source_som._n)))
+                axis_arr[2, 1].set_title('Hebbian weights of source BMU')
+                axis_arr[2, 0].matshow(np.zeros((source_som._m, source_som._n)))
+                plt.tight_layout()
                 plt.savefig(os.path.join(Constants.PLOT_FOLDER, str(img_n)+'.png'))
                 plt.clf()
                 img_n += 1

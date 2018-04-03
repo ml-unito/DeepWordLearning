@@ -1,4 +1,4 @@
-# Copyright 2017 Giorgia Fenoglio
+# Copyright 2017 Giorgia Fenoglio, Mattia Cerrato
 #
 # This file is part of NNsTaxonomicResponding.
 #
@@ -19,6 +19,13 @@ import tensorflow as tf
 import numpy as np
 import math
 import os
+import matplotlib
+matplotlib.use('Agg')
+matplotlib.rcParams.update({'font.size': 8})
+import matplotlib.pyplot as plt
+from utils.constants import Constants
+from matplotlib import colors
+
 
 class SOM(object):
     """
@@ -275,7 +282,7 @@ class SOM(object):
 
         return [min_index,self._locations[min_index]]
 
-    def get_activations(self, input_vect, tau=0.5):
+    def get_activations(self, input_vect, tau=0.5, threshold=0.6):
       # get activations for the word learning
 
       # Quantization error:
@@ -289,4 +296,29 @@ class SOM(object):
         activations.append(math.exp(-(np.sum(d)/len(d))/tau))
         pos_activations.append(self._locations[i])
 
+      # normalize in 0~1
+      max_ = max(activations)
+      min_ = min(activations)
+      activations = np.array([(a - min_) / float(max_ - min_) for a in activations])
+      # threshold
+      idx = activations < threshold
+      activations[idx] = 0
       return [activations,pos_activations]
+
+    def plot_som(self, X, y, plot_name='som-viz.png'):
+        image_grid = np.zeros(shape=(self._n,self._m))
+
+        color_names = \
+            {0: 'black', 1: 'blue', 2: 'skyblue',
+             3: 'aqua', 4: 'darkgray', 5: 'green', 6: 'red',
+             7: 'cyan', 8: 'violet', 9: 'yellow'}
+        #Map colours to their closest neurons
+        mapped = self.map_vects(X)
+
+        #Plot
+        plt.imshow(image_grid)
+        plt.title('Color SOM')
+        for i, m in enumerate(mapped):
+            plt.text(m[1], m[0], color_names[y[i]], ha='center', va='center',
+                     bbox=dict(facecolor=color_names[y[i]], alpha=0.5, lw=0))
+        plt.savefig(os.path.join(Constants.PLOT_FOLDER, plot_name))

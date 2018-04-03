@@ -8,7 +8,7 @@ import os
 import numpy as np
 
 soma_path = os.path.join(Constants.DATA_FOLDER, '10classes', 'audio_model', '')
-somv_path = os.path.join(Constants.DATA_FOLDER, '10classes', 'visual_model', '')
+somv_path = os.path.join(Constants.DATA_FOLDER, '10classes', 'visual_model_mine', '')
 hebbian_path = os.path.join(Constants.DATA_FOLDER, '10classes', 'hebbian_model', '')
 audio_data_path = os.path.join(Constants.DATA_FOLDER,
                                '10classes',
@@ -73,7 +73,7 @@ if __name__ == '__main__':
     # fix labels to 0-9 range
     a_ys = [int(y)-1000 for y in a_ys]
     v_ys = [int(y)-1000 for y in v_ys]
-    # scale audio data to 0-1 range
+    # scale data to 0-1 range
     a_xs = MinMaxScaler().fit_transform(a_xs)
     v_xs = MinMaxScaler().fit_transform(v_xs)
     # create fake examples for audio
@@ -81,13 +81,14 @@ if __name__ == '__main__':
     a_dim = len(a_xs[0])
     v_dim = len(v_xs[0])
     som_a = SOM(20, 30, a_dim, checkpoint_dir=soma_path, n_iterations=200)
-    som_v = SOM(20, 30, v_dim, checkpoint_dir=somv_path, n_iterations=60)
+    som_v = SOM(20, 30, v_dim, checkpoint_dir=somv_path, n_iterations=200)
     som_a.restore_trained()
     som_v.restore_trained()
-    for n in range(1, 24):
+    for n in range(1, 15):
         hebbian_model = HebbianModel(som_a, som_v, a_dim=a_dim,
                                      v_dim=v_dim, n_presentations=n,
-                                     checkpoint_dir=hebbian_path)
+                                     checkpoint_dir=hebbian_path,
+                                     tau=0.1, learning_rate=100)
         # create em folds
         v_ys = np.array(v_ys)
         v_xs = np.array(v_xs)
@@ -98,5 +99,5 @@ if __name__ == '__main__':
         print('Training...')
         hebbian_model.train(a_xs_fold, v_xs_fold)
         print('Evaluating...')
-        accuracy = hebbian_model.evaluate(a_xs_fold, v_xs, a_ys_fold, v_ys, source='v')
+        accuracy = hebbian_model.evaluate(a_xs_fold, v_xs, a_ys_fold, v_ys, source='v', img_path = './')
         print('n={}, accuracy={}'.format(n, accuracy))
