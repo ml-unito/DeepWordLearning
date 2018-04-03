@@ -37,7 +37,8 @@ class SOM(object):
     _trained = False
 
 
-    def __init__(self, m, n, dim, checkpoint_dir=None, n_iterations=50, alpha=None, sigma=None):
+    def __init__(self, m, n, dim, checkpoint_dir=None, n_iterations=50, alpha=None, sigma=None,
+                 tau=0.5, threshold=0.6):
         """
         Initializes all necessary components of the TensorFlow
         Graph.
@@ -65,6 +66,9 @@ class SOM(object):
             sigma = max(m, n) / 2.0
         else:
             sigma = float(sigma)
+
+        self.tau = tau
+        self.threshold = threshold
 
         self._n_iterations = abs(int(n_iterations))
 
@@ -282,7 +286,7 @@ class SOM(object):
 
         return [min_index,self._locations[min_index]]
 
-    def get_activations(self, input_vect, tau=0.5, threshold=0.6):
+    def get_activations(self, input_vect):
       # get activations for the word learning
 
       # Quantization error:
@@ -293,7 +297,7 @@ class SOM(object):
 
         d = (np.absolute(input_vect-self._weightages[i])).tolist()
 
-        activations.append(math.exp(-(np.sum(d)/len(d))/tau))
+        activations.append(math.exp(-(np.sum(d)/len(d))/self.tau))
         pos_activations.append(self._locations[i])
 
       # normalize in 0~1
@@ -301,7 +305,7 @@ class SOM(object):
       min_ = min(activations)
       activations = np.array([(a - min_) / float(max_ - min_) for a in activations])
       # threshold
-      idx = activations < threshold
+      idx = activations < self.threshold
       activations[idx] = 0
       return [activations,pos_activations]
 

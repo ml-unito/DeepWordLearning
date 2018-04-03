@@ -73,8 +73,8 @@ class HebbianModel(object):
             # present images to model
             for i in range(len(input_a)):
                 # get activations from som
-                activation_a, _ = self.som_a.get_activations(input_a[i], tau=self.tau, threshold=self.threshold)
-                activation_v, _ = self.som_v.get_activations(input_v[i], tau=self.tau, threshold=self.threshold)
+                activation_a, _ = self.som_a.get_activations(input_a[i])
+                activation_v, _ = self.som_v.get_activations(input_v[i])
 
                 # run training op
                 _, d = self._sess.run([self.training, self.delta],
@@ -104,6 +104,20 @@ class HebbianModel(object):
             # convert weights to numpy arrays from tf tensors
             self.weights = self._sess.run(self.weights)
 
+    def restore_trained(self):
+        ckpt = tf.train.get_checkpoint_state(self.checkpoint_dir)
+        if ckpt and ckpt.model_checkpoint_path:
+            with self._sess:
+              saver = tf.train.Saver()
+              saver.restore(self._sess, ckpt.model_checkpoint_path)
+              self.weights = self._sess.run(self.weights)
+              print('RESTORED HEBBIAN MODEL')
+              return True
+        else:
+            print('NO CHECKPOINT FOUND')
+            return False
+
+
     def get_bmus_propagate(self, x, source_som='v'):
         '''
         Get the best matching unit by propagating an input vector's activations
@@ -124,7 +138,7 @@ class HebbianModel(object):
             to_som = self.som_v
         else:
             raise ValueError('Wrong string for source_som parameter')
-        source_activation, _ = from_som.get_activations(x, tau=self.tau, threshold=self.threshold)
+        source_activation, _ = from_som.get_activations(x)
         source_bmu_index = np.argmax(np.array(source_activation))
         #bmu_weights = self._sess.run(source_som._weightage_vects[bmu_index]) # probably un-needed?
         #if source_som == 'a':
@@ -145,9 +159,6 @@ class HebbianModel(object):
             sys.exit(1)
         target_bmu_index = np.argmax(target_activation)
         return source_bmu_index, target_bmu_index
-
-    def restore_trained(self):
-        pass
 
     def evaluate(self, X_a, X_v, y_a, y_v, source='v', img_path=None):
         if source == 'v':
@@ -192,9 +203,9 @@ class HebbianModel(object):
                 else:
                     hebbian_weights = self.weights[source_bmu][:]
 
-                source_activation, _ = source_som.get_activations(x, tau=self.tau, threshold=self.threshold)
-                target_activation_true, _ = target_som.get_activations(reference_representations[y], tau=self.tau, threshold=self.threshold)
-                target_activation_pred, _ = target_som.get_activations(reference_representations[yi_pred], tau=self.tau, threshold=self.threshold)
+                source_activation, _ = source_som.get_activations(x)
+                target_activation_true, _ = target_som.get_activations(reference_representations[y])
+                target_activation_pred, _ = target_som.get_activations(reference_representations[yi_pred])
                 #propagated_activation = hebbian_weights * source_activation
                 if source == 'a':
                     propagated_activation = np.matmul(self.weights.T, np.array(source_activation).reshape((-1, 1)))
