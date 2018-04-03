@@ -23,7 +23,7 @@ import os
 import math
 import random
 import matplotlib.patches as mpatches
-
+from utils.constants import Constants
 
 fInput = 'input10classes/VisualInputTrainingSet.csv'
 N = 1000
@@ -116,7 +116,7 @@ def showSom(som,inputs,nameInputs,count,title, filenames=None):
       patch_list.append(patch)
   plt.legend(handles=patch_list)
 
-  plt.show()
+  plt.savefig(os.path.join(Constants.PLOT_FOLDER, 'viz_som.png'))
   return plt
 
 
