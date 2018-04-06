@@ -4,6 +4,7 @@ from utils.constants import Constants
 from utils.utils import from_csv_with_filenames, from_csv_visual, from_csv, to_csv
 from sklearn.utils import shuffle
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.model_selection import train_test_split
 import os
 import numpy as np
 
@@ -73,22 +74,21 @@ if __name__ == '__main__':
                 tau=0.1, threshold=0.6)
     som_a.restore_trained()
     som_v.restore_trained()
+    v_ys = np.array(v_ys)
+    v_xs = np.array(v_xs)
+    a_xs = np.array(a_xs)
+    a_ys = np.array(a_ys)
+    a_xs_train, a_xs_test, a_ys_train, a_ys_test = train_test_split(a_xs, a_ys, test_size=0.2)
+    v_xs_train, v_xs_test, v_ys_train, v_ys_test = train_test_split(v_xs, v_ys, test_size=0.2)
     for n in range(1, 15):
         hebbian_model = HebbianModel(som_a, som_v, a_dim=a_dim,
                                      v_dim=v_dim, n_presentations=n,
                                      checkpoint_dir=hebbian_path,
                                      tau=0.1, learning_rate=100)
         # create em folds
-        v_ys = np.array(v_ys)
-        v_xs = np.array(v_xs)
-        a_xs = np.array(a_xs)
-        a_ys = np.array(a_ys)
-        a_xs_fold, v_xs_fold, a_ys_fold, v_ys_fold = create_folds(a_xs, v_xs, a_ys, v_ys, n_folds=n)
-        # each fold n contains four lists, each one containing one example
-        # for each class. since we are using n for both n_presentations and
-        # referencing 'folds', which is 0-indexed, we need to put n-1 here
+        a_xs_fold, v_xs_fold, a_ys_fold, v_ys_fold = create_folds(a_xs_train, v_xs_train, a_ys_train, v_ys_train, n_folds=n)
         print('Training...')
         hebbian_model.train(a_xs_fold, v_xs_fold)
         print('Evaluating...')
-        accuracy = hebbian_model.evaluate(a_xs_fold, v_xs, a_ys_fold, v_ys, source='v')
+        accuracy = hebbian_model.evaluate(a_xs_test, v_xs_test, a_ys_test, v_ys_test, source='v')
         print('n={}, accuracy={}'.format(n, accuracy))

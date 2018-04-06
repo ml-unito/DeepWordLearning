@@ -158,6 +158,7 @@ class HebbianModel(object):
        som: {}'.format(target_activation.shape, to_som._n * to_som._m))
             sys.exit(1)
         target_bmu_index = np.argmax(target_activation)
+
         return source_bmu_index, target_bmu_index
 
     def evaluate(self, X_a, X_v, y_a, y_v, source='v', img_path=None):
@@ -178,34 +179,38 @@ class HebbianModel(object):
         else:
             raise ValueError('Wrong string for source parameter')
 
-        # get reference activations
-        reference_representations = get_prototypes(X_target, y_target)
         y_pred = []
         img_n = 0
+
         for x, y in zip(X_source, y_source):
             source_bmu, target_bmu = self.get_bmus_propagate(x, source_som=source)
-            target_activations = [0 for i in range(0, len(set(y_source)))]
+            target_activations = []
             target_bmu_weights = np.reshape(target_som._weightages[target_bmu],
                                            (1, -1))
-            for yi_target, reference_representation in reference_representations.items():
-                reference_representation = np.reshape(reference_representation, (-1, 1))
-                activation = np.dot(target_bmu_weights, reference_representation)
+            for yi_target, xi_target in zip(y_target, X_target):
+                xi_target = np.reshape(xi_target, (-1, 1))
+                activation = np.dot(target_bmu_weights, xi_target)
+                # alternative way to compute the activation. should be the same performance wise. (untested)
                 # activation = np.absolute(reference_representation - target_bmu_weights)
                 # activation = np.exp(-(np.sum(activation)/len(activation))/self.tau)
+                # save a correct example for later visualization, if necessary
+                if yi_target == y:
+                    xi_true = xi_target
                 # the float cast is so that 'activation' is not seen as an array but as an element
-                target_activations[yi_target] = float(activation)
-            yi_pred = np.argmax(target_activations)
+                target_activations.append(float(activation))
+            yi_pred_idx = np.argmax(target_activations)
+            yi_pred = y_target[yi_pred_idx]
             y_pred.append(yi_pred)
+            # image generation code
             if img_path != None:
-                # image generation
                 if source == 'a':
                     hebbian_weights = self.weights[:][source_bmu]
                 else:
                     hebbian_weights = self.weights[source_bmu][:]
 
                 source_activation, _ = source_som.get_activations(x)
-                target_activation_true, _ = target_som.get_activations(reference_representations[y])
-                target_activation_pred, _ = target_som.get_activations(reference_representations[yi_pred])
+                target_activation_true, _ = target_som.get_activations(xi_true)
+                target_activation_pred, _ = target_som.get_activations(X_target[yi_pred_idx])
                 #propagated_activation = hebbian_weights * source_activation
                 if source == 'a':
                     propagated_activation = np.matmul(self.weights.T, np.array(source_activation).reshape((-1, 1)))
