@@ -84,11 +84,11 @@ if __name__ == '__main__':
         hebbian_model = HebbianModel(som_a, som_v, a_dim=a_dim,
                                      v_dim=v_dim, n_presentations=n,
                                      checkpoint_dir=hebbian_path,
-                                     tau=0.1, learning_rate=100)
+                                     learning_rate=100)
         # create em folds
         a_xs_fold, v_xs_fold, a_ys_fold, v_ys_fold = create_folds(a_xs_train, v_xs_train, a_ys_train, v_ys_train, n_folds=n)
         print('Training...')
         hebbian_model.train(a_xs_fold, v_xs_fold)
         print('Evaluating...')
-        accuracy = hebbian_model.evaluate(a_xs_test, v_xs_test, a_ys_test, v_ys_test, source='v')
+        accuracy = hebbian_model.evaluate(a_xs_test, v_xs_test, a_ys_test, v_ys_test, source='a')
         print('n={}, accuracy={}'.format(n, accuracy))

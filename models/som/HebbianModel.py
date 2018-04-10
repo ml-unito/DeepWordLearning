@@ -13,7 +13,7 @@ from utils.constants import Constants
 class HebbianModel(object):
 
     def __init__(self, som_a, som_v, a_dim, v_dim, learning_rate=10,
-                 n_presentations=1, n_classes=10, threshold=.6, tau=0.5,
+                 n_presentations=1, n_classes=10, threshold=.6,
                  checkpoint_dir=None):
         assert som_a._m == som_v._m and som_a._n == som_v._n
         self.num_neurons = som_a._m * som_a._n
@@ -27,7 +27,6 @@ class HebbianModel(object):
         self.checkpoint_dir = checkpoint_dir
         self.learning_rate = learning_rate
         self.threshold = threshold
-        self.tau = tau
         self._trained = False
 
         with self._graph.as_default():
@@ -41,7 +40,7 @@ class HebbianModel(object):
             self.activation_v = tf.placeholder(dtype=tf.float32, shape=[self.num_neurons])
             self.assigned_weights = tf.placeholder(dtype=tf.float32, shape=[self.num_neurons, self.num_neurons])
 
-            self.delta = 1 - tf.exp(-self.learning_rate * tf.matmul(tf.reshape(self.activation_a, (-1, 1)), tf.reshape(self.activation_v, (1, -1))))
+            self.delta = 1 - tf.exp(-self.learning_rate * tf.matmul(tf.reshape(self.activation_a, (-1, 1)),                            tf.reshape(self.activation_v, (1, -1))))
             new_weights = tf.add(self.weights, self.delta)
             self.training = tf.assign(self.weights, new_weights)
 
@@ -191,8 +190,8 @@ class HebbianModel(object):
                 xi_target = np.reshape(xi_target, (-1, 1))
                 activation = np.dot(target_bmu_weights, xi_target)
                 # alternative way to compute the activation. should be the same performance wise. (untested)
-                # activation = np.absolute(reference_representation - target_bmu_weights)
-                # activation = np.exp(-(np.sum(activation)/len(activation))/self.tau)
+                #activation = np.absolute(xi_target - target_bmu_weights)
+                #activation = np.exp(-(np.sum(activation)/len(activation))/self.tau)
                 # save a correct example for later visualization, if necessary
                 if yi_target == y:
                     xi_true = xi_target
@@ -211,7 +210,6 @@ class HebbianModel(object):
                 source_activation, _ = source_som.get_activations(x)
                 target_activation_true, _ = target_som.get_activations(xi_true)
                 target_activation_pred, _ = target_som.get_activations(X_target[yi_pred_idx])
-                #propagated_activation = hebbian_weights * source_activation
                 if source == 'a':
                     propagated_activation = np.matmul(self.weights.T, np.array(source_activation).reshape((-1, 1)))
                 else:
