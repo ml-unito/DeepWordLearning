@@ -32,13 +32,12 @@ if __name__ == '__main__':
         som_a.train(a_xs)
         som_v.train(v_xs)
         hebbian_model = HebbianModel(som_a, som_v, a_dim=a_dim,
-                                     v_dim=v_dim, n_presentations=1, learning_rate=1, tau=0.2, n_classes=n_classes,
-                                     threshold=0.6,
+                                     v_dim=v_dim, n_presentations=1, learning_rate=1, n_classes=n_classes,
                                      checkpoint_dir=hebbian_path)
         print('Training...')
         hebbian_model.train(a_xs, v_xs)
         print('Evaluating...')
-        accuracy = hebbian_model.evaluate(a_xs, v_xs, a_ys, v_ys, source='a')
+        accuracy = hebbian_model.evaluate(a_xs, v_xs, a_ys, v_ys, source='a', img_path = './')
         acc.append(accuracy)
         print('n={}, accuracy={}'.format(1, accuracy))
     print(sum(acc)/len(acc))
