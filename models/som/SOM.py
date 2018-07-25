@@ -286,28 +286,49 @@ class SOM(object):
 
         return [min_index,self._locations[min_index]]
 
-    def get_activations(self, input_vect):
+    def detect_superpositions(self, l):
+        for l_i in l:
+            if len(l_i) > 1:
+                if all(x == l_i[0] for x in l_i) == False:
+                    return True
+        return False
+
+    def memorize_examples_by_class(self, X, y):
+        self.bmu_class_dict = {i : [] for i in range(self._n * self._m)}
+        for i, (x, yi) in enumerate(zip(X, y)):
+            activations, _ = self.get_activations(x, normalize=False, mode='exp', threshold=False)
+            bmu_index = np.argmax(activations)
+            self.bmu_class_dict[bmu_index].append(yi)
+        superpositions = self.detect_superpositions(self.bmu_class_dict.values())
+        print('More than a class mapped to a neuron: '+ str(superpositions))
+        return superpositions
+
+    def get_activations(self, input_vect, normalize=True, threshold=True, mode='exp'):
       # get activations for the word learning
 
-      # Quantization error:
+  # Quantization error:
       activations = list()
       pos_activations = list()
       for i in range(len(self._weightages)):
-        d = np.array([])
+          d = np.array([])
 
-        d = (np.absolute(input_vect-self._weightages[i])).tolist()
-
-        activations.append(math.exp(-(np.sum(d)/len(d))/self.tau))
-        pos_activations.append(self._locations[i])
-
-      # normalize in 0~1
-      max_ = max(activations)
-      min_ = min(activations)
-      activations = np.array([(a - min_) / float(max_ - min_) for a in activations])
-      # threshold
-      idx = activations < self.threshold
-      activations[idx] = 0
+          d = (np.absolute(input_vect-self._weightages[i])).tolist()
+          if mode == 'exp':
+              activations.append(math.exp(-(np.sum(d)/len(d))/self.tau))
+          if mode == 'linear':
+              activations.append(1/np.sum(d))
+          pos_activations.append(self._locations[i])
+      activations = np.array(activations)
+      if normalize:
+          max_ = max(activations)
+          min_ = min(activations)
+          activations = (activations - min_) / float(max_ - min_)
+      if threshold:
+          idx = activations < self.threshold
+          activations[idx] = 0
       return [activations,pos_activations]
+
+
 
     def plot_som(self, X, y, plot_name='som-viz.png'):
         image_grid = np.zeros(shape=(self._n,self._m))
