@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from RepresentationExperiments.distance_experiments import get_prototypes
 from sklearn.preprocessing import MinMaxScaler
 from utils.constants import Constants
+from utils.utils import softmax
 
 class HebbianModel(object):
 
@@ -160,7 +161,7 @@ class HebbianModel(object):
 
         return source_bmu_index, target_bmu_index
 
-    def evaluate(self, X_a, X_v, y_a, y_v, source='v', img_path=None):
+    def evaluate(self, X_a, X_v, y_a, y_v, source='v', img_path=None, prediction_alg='regular'):
         if source == 'v':
             X_source = X_v
             X_target = X_a
@@ -182,9 +183,17 @@ class HebbianModel(object):
         img_n = 0
 
         for x, y in zip(X_source, y_source):
-            yi_pred = self.make_prediction(x, y, source_som, target_som, X_target, y_target, source, img_path=img_path, n=img_n)
+            if prediction_alg == 'regular':
+                yi_pred = self.make_prediction(x, y, source_som, target_som, X_target, y_target, source, img_path=img_path, n=img_n)
+            elif prediction_alg == 'knn':
+                yi_pred = self.make_prediction_knn(x, y, 4, source_som, target_som, X_target, y_target, source)
+            elif prediction_alg == 'knn2':
+                yi_pred = self.make_prediction_knn_weighted(x, y, 4, source_som, target_som, X_target, y_target, source)
+            elif prediction_alg == 'sorted':
+                yi_pred = self.make_prediction_sort(x, y, source_som, target_som, X_target, y_target, source)
+            else:
+                raise ValueError('Unknown evaluation algorithm ' + str(prediction_alg))
             y_pred.append(yi_pred)
-            # image generation code
         correct = 0
         for yi, yj in zip(y_pred, y_source):
             if yi == yj:
@@ -248,6 +257,104 @@ class HebbianModel(object):
             plt.savefig(os.path.join(Constants.PLOT_FOLDER, str(n)+'.png'))
             plt.clf()
         return yi_pred
+
+    def get_bmu_k_closest(self, som, activations, pos_activations, k):
+        '''
+        Returns two lists containing respectively the level of activation
+        and positions for the BMU and its closest k units. The length of these
+        lists is therefore k+1, with the BMU information in the first position.
+        '''
+        bmu_index = np.argmax(activations)
+        bmu_position = pos_activations[bmu_index]
+        distances_from_bmu = [np.linalg.norm(bmu_position - unit_position) for unit_position in pos_activations]
+        sorted_indexes = list(range(len(distances_from_bmu)))
+        sorted_indexes.sort(key=distances_from_bmu.__getitem__)
+        sorted_activations = list(map(activations.__getitem__, sorted_indexes))
+        sorted_positions = list(map(pos_activations.__getitem__, sorted_indexes))
+        sorted_tuple = [(act, index) for act, index in zip(sorted_activations, sorted_indexes)
+                          if som.bmu_class_dict[index] != []]
+        sorted_activations = list(zip(*sorted_tuple))[0]
+        sorted_indexes = list(zip(*sorted_tuple))[1]
+        return sorted_activations[:k+1], sorted_indexes[:k+1]
+
+
+    def make_prediction_knn(self, x, y, k, source_som, target_som, X_target, y_target, source):
+        source_activation, pos_source_activation = source_som.get_activations(x)
+        source_activation = np.array(source_activation).reshape((-1, 1))
+        if source == 'a':
+            target_activation = np.matmul(self.weights.T, np.array(source_activation).reshape((-1, 1)))
+        else:
+            target_activation = np.matmul(self.weights, np.array(source_activation).reshape((-1, 1)))
+        hebbian_bmu_index = np.argmax(target_activation)
+        pos_activations = list(target_som._neuron_locations(target_som._m, target_som._n))
+        closest_activations, closest_indexes = self.get_bmu_k_closest(target_som, target_activation,
+                                                                      pos_activations, k)
+        # perform a simple majority vote
+        class_count = [0 for i in set([c[0] for c in target_som.bmu_class_dict.values() if c != []])]
+        for i in range(len(closest_indexes)):
+            bmu_class_list = target_som.bmu_class_dict[closest_indexes[i]]
+            if bmu_class_list != []:
+                class_count[bmu_class_list[0]] += 1
+        print(class_count)
+        return np.argmax(class_count)
+
+    def make_prediction_knn_weighted(self, x, y, k, source_som, target_som, X_target, y_target, source,
+                                     mode='none'):
+        source_activation, pos_source_activation = source_som.get_activations(x)
+        source_activation = np.array(source_activation).reshape((-1, 1))
+        if source == 'a':
+            target_activation = np.matmul(self.weights.T, np.array(source_activation).reshape((-1, 1)))
+        else:
+            target_activation = np.matmul(self.weights, np.array(source_activation).reshape((-1, 1)))
+
+        # vote weighting alternatives
+        if mode == 'softmax':
+            # normalize using softmax. this brings some 0-valued votes to higher values
+            vote_weights = softmax(target_activation)
+        elif mode == 'none':
+            # since hebbian weights and activations are normalized, the propagated activation's values
+            # are already between 0 and 1
+            vote_weights = target_activation
+        elif mode == 'minmax':
+            # minimum activation is mapped to 0 and maximum to 1
+            min_ = min(target_activation)
+            max_ = max(target_activation)
+            vote_weights = (target_activation - min_) / float(max_- min_)
+        hebbian_bmu_index = np.argmax(target_activation)
+        pos_activations = list(target_som._neuron_locations(target_som._m, target_som._n))
+        closest_activations, closest_indexes = self.get_bmu_k_closest(target_som, target_activation,
+                                                                      pos_activations, k)
+        # perform a weighted majority vote
+        class_count = [0 for i in set([c[0] for c in target_som.bmu_class_dict.values() if c != []])]
+        for i in range(len(closest_indexes)):
+            print(closest_indexes[i])
+            bmu_class_list = target_som.bmu_class_dict[closest_indexes[i]]
+            if bmu_class_list != []:
+                class_count[bmu_class_list[0]] += 1 * vote_weights[closest_indexes[i]]
+        print(class_count)
+        return np.argmax(class_count)
+
+    def make_prediction_sort(self, x, y, source_som, target_som, X_target, y_target, source):
+        source_activation, _ = source_som.get_activations(x)
+        source_activation = np.array(source_activation).reshape((-1, 1))
+        if source == 'a':
+            target_activation = np.matmul(self.weights.T, np.array(source_activation).reshape((-1, 1)))
+        else:
+            target_activation = np.matmul(self.weights, np.array(source_activation).reshape((-1, 1)))
+        for i in range(len(target_activation)):
+            hebbian_bmu_index = np.argmax(target_activation)
+            bmu_class_list = target_som.bmu_class_dict[hebbian_bmu_index]
+            if bmu_class_list != []:
+                # TODO: note that this ignores superpositions, which might give
+                # trouble in the future.
+                return bmu_class_list[0]
+            if target_activation[hebbian_bmu_index] == -1:
+                print('Error: make_prediction_sort failed.')
+                return
+            # discard this activation so that argmax does not find it again next
+            # iteration
+            target_activation[hebbian_bmu_index] = -1
+
 
     def threshold_activation(self, x):
         idx = x < self.threshold

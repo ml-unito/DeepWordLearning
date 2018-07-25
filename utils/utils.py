@@ -160,3 +160,8 @@ def from_csv_visual(path):
         ys.append(infer_label_10classes(lSplit[0], labels_dict))
     f.close()
     return xs, ys
+
+def softmax(x):
+    e_x = np.exp(x - np.max(x))
+    out = e_x / e_x.sum()
+    return out
