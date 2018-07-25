@@ -117,6 +117,19 @@ class HebbianModel(object):
             print('NO CHECKPOINT FOUND')
             return False
 
+    def propagate_activation(self, source_activation, source_som='v'):
+        source_activation = np.array(source_activation).reshape((-1, 1))
+        if source_som == 'a':
+            target_activation = np.matmul(self.weights.T, np.array(source_activation).reshape((-1, 1)))
+        else:
+            target_activation = np.matmul(self.weights, np.array(source_activation).reshape((-1, 1)))
+        try:
+            assert target_activation.shape[0] == (to_som._n * to_som._m)
+        except AssertionError:
+            print('Shapes do not match. target_activation: {};\
+       som: {}'.format(target_activation.shape, to_som._n * to_som._m))
+            sys.exit(1)
+        return target_activation
 
     def get_bmus_propagate(self, x, source_som='v'):
         '''
@@ -140,25 +153,9 @@ class HebbianModel(object):
             raise ValueError('Wrong string for source_som parameter')
         source_activation, _ = from_som.get_activations(x)
         source_bmu_index = np.argmax(np.array(source_activation))
-        #bmu_weights = self._sess.run(source_som._weightage_vects[bmu_index]) # probably un-needed?
-        #if source_som == 'a':
-        #    hebbian_weights = self.weights[:][source_bmu_index]
-        #else:
-        #    hebbian_weights = self.weights[source_bmu_index][:]
-        #target_activation = hebbian_weights * source_activation
         source_activation = np.array(source_activation).reshape((-1, 1))
-        if source_som == 'a':
-            target_activation = np.matmul(self.weights.T, np.array(source_activation).reshape((-1, 1)))
-        else:
-            target_activation = np.matmul(self.weights, np.array(source_activation).reshape((-1, 1)))
-        try:
-            assert target_activation.shape[0] == (to_som._n * to_som._m)
-        except AssertionError:
-            print('Shapes do not match. target_activation: {};\
-       som: {}'.format(target_activation.shape, to_som._n * to_som._m))
-            sys.exit(1)
+        target_activation = self.propagate_activation(source_activation, source_som=source_som)
         target_bmu_index = np.argmax(target_activation)
-
         return source_bmu_index, target_bmu_index
 
     def evaluate(self, X_a, X_v, y_a, y_v, source='v', img_path=None, prediction_alg='regular'):
