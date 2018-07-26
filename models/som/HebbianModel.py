@@ -200,7 +200,7 @@ class HebbianModel(object):
         print(y_pred)
         return correct/len(y_pred)
 
-    def make_prediction(self, x, y, source_som, target_som, X_target, y_target, source, img_path = None, n=0):
+    def make_prediction(self, x, y, source_som, target_som, X_target, y_target, source):
         source_bmu, target_bmu = self.get_bmus_propagate(x, source_som=source)
         target_activations = []
         target_bmu_weights = np.reshape(target_som._weightages[target_bmu],
@@ -218,39 +218,44 @@ class HebbianModel(object):
             target_activations.append(float(activation))
         yi_pred_idx = np.argmax(target_activations)
         yi_pred = y_target[yi_pred_idx]
-        if img_path != None:
-            if source == 'a':
-                hebbian_weights = self.weights[:][source_bmu]
-            else:
-                hebbian_weights = self.weights[source_bmu][:]
-
-            source_activation, _ = source_som.get_activations(x)
-            target_activation_true, _ = target_som.get_activations(xi_true)
-            target_activation_pred, _ = target_som.get_activations(X_target[yi_pred_idx])
-
-            propagated_activation = self.propagate_activation(source_activation, source_som=source)
-
-            fig, axis_arr = plt.subplots(3, 2)
-            axis_arr[0, 0].matshow(np.array(source_activation)
-                                   .reshape((source_som._m, source_som._n)))
-            axis_arr[0, 0].set_title('Source SOM activation')
-            axis_arr[0, 1].matshow(propagated_activation
-                                   .reshape((source_som._m, source_som._n)))
-            axis_arr[0, 1].set_title('Propagation of activation to target')
-            axis_arr[1, 0].matshow(np.array(target_activation_true)
-                                   .reshape((source_som._m, source_som._n)))
-            axis_arr[1, 0].set_title('Target SOM activation true label ({})'.format(y))
-            axis_arr[1, 1].matshow(np.array(target_activation_pred)
-                                   .reshape((source_som._m, source_som._n)))
-            axis_arr[1, 1].set_title('Target SOM activation predicted label ({})'.format(yi_pred))
-            axis_arr[2, 1].matshow(np.array(hebbian_weights)
-                                   .reshape((source_som._m, source_som._n)))
-            axis_arr[2, 1].set_title('Hebbian weights of source BMU')
-            axis_arr[2, 0].matshow(np.zeros((source_som._m, source_som._n)))
-            plt.tight_layout()
-            plt.savefig(os.path.join(Constants.PLOT_FOLDER, str(n)+'.png'))
-            plt.clf()
         return yi_pred
+
+    def make_plot(self, x, y, x_true, X_target, source_som, target_som, source):
+        source_bmu, target_bmu = self.get_bmus_propagate(x, source_som=source)
+
+        if source == 'a':
+            hebbian_weights = self.weights[:][source_bmu]
+        else:
+            hebbian_weights = self.weights[source_bmu][:]
+
+        source_activation, _ = source_som.get_activations(x)
+        target_activation_true, _ = target_som.get_activations(x_true)
+
+        # TODO: replicate some of the other make_prediction code to get this
+        yi_pred = self.make_prediction_sorted(x, y, source_som, target_som, X_target, y_target, source)
+        target_activation_pred, _ = target_som.get_activations(X_target[yi_pred_idx])
+        propagated_activation = self.propagate_activation(source_activation, source_som=source)
+
+        fig, axis_arr = plt.subplots(3, 2)
+        axis_arr[0, 0].matshow(np.array(source_activation)
+                               .reshape((source_som._m, source_som._n)))
+        axis_arr[0, 0].set_title('Source SOM activation')
+        axis_arr[0, 1].matshow(propagated_activation
+                               .reshape((source_som._m, source_som._n)))
+        axis_arr[0, 1].set_title('Propagation of activation to target')
+        axis_arr[1, 0].matshow(np.array(target_activation_true)
+                               .reshape((source_som._m, source_som._n)))
+        axis_arr[1, 0].set_title('Target SOM activation true label ({})'.format(y))
+        axis_arr[1, 1].matshow(np.array(target_activation_pred)
+                               .reshape((source_som._m, source_som._n)))
+        axis_arr[1, 1].set_title('Target SOM activation predicted label ({})'.format(yi_pred))
+        axis_arr[2, 1].matshow(np.array(hebbian_weights)
+                               .reshape((source_som._m, source_som._n)))
+        axis_arr[2, 1].set_title('Hebbian weights of source BMU')
+        axis_arr[2, 0].matshow(np.zeros((source_som._m, source_som._n)))
+        plt.tight_layout()
+        plt.savefig(os.path.join(Constants.PLOT_FOLDER, str(n)+'.png'))
+        plt.clf()
 
     def get_bmu_k_closest(self, som, activations, pos_activations, k):
         '''
