@@ -181,13 +181,13 @@ class HebbianModel(object):
 
         for x, y in zip(X_source, y_source):
             if prediction_alg == 'regular':
-                yi_pred = self.make_prediction(x, y, source_som, target_som, X_target, y_target, source, img_path=img_path, n=img_n)
+                yi_pred = self.make_prediction(x, y, source_som, target_som, X_target, y_target, source)
             elif prediction_alg == 'knn':
-                yi_pred = self.make_prediction_knn(x, y, 4, source_som, target_som, X_target, y_target, source)
+                yi_pred = self.make_prediction_knn(x, y, 4, source_som, target_som, source)
             elif prediction_alg == 'knn2':
-                yi_pred = self.make_prediction_knn_weighted(x, y, 4, source_som, target_som, X_target, y_target, source)
+                yi_pred = self.make_prediction_knn_weighted(x, y, 4, source_som, target_som, source)
             elif prediction_alg == 'sorted':
-                yi_pred = self.make_prediction_sort(x, y, source_som, target_som, X_target, y_target, source)
+                yi_pred = self.make_prediction_sort(x, y, source_som, target_som, source)
             else:
                 raise ValueError('Unknown evaluation algorithm ' + str(prediction_alg))
             y_pred.append(yi_pred)
@@ -277,7 +277,7 @@ class HebbianModel(object):
         return sorted_activations[:k+1], sorted_indexes[:k+1]
 
 
-    def make_prediction_knn(self, x, y, k, source_som, target_som, X_target, y_target, source):
+    def make_prediction_knn(self, x, y, k, source_som, target_som, source):
         source_activation, pos_source_activation = source_som.get_activations(x)
         source_activation = np.array(source_activation).reshape((-1, 1))
         target_activation = self.propagate_activation(source_activation, source_som=source)
@@ -294,7 +294,7 @@ class HebbianModel(object):
         print(class_count)
         return np.argmax(class_count)
 
-    def make_prediction_knn_weighted(self, x, y, k, source_som, target_som, X_target, y_target, source,
+    def make_prediction_knn_weighted(self, x, y, k, source_som, target_som, source,
                                      mode='none'):
         source_activation, pos_source_activation = source_som.get_activations(x)
         source_activation = np.array(source_activation).reshape((-1, 1))
@@ -326,7 +326,7 @@ class HebbianModel(object):
         print(class_count)
         return np.argmax(class_count)
 
-    def make_prediction_sort(self, x, y, source_som, target_som, X_target, y_target, source):
+    def make_prediction_sort(self, x, y, source_som, target_som, source):
         source_activation, _ = source_som.get_activations(x)
         source_activation = np.array(source_activation).reshape((-1, 1))
         target_activation = self.propagate_activation(source_activation, source_som=source)
