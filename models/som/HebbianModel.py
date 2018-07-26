@@ -227,11 +227,8 @@ class HebbianModel(object):
             source_activation, _ = source_som.get_activations(x)
             target_activation_true, _ = target_som.get_activations(xi_true)
             target_activation_pred, _ = target_som.get_activations(X_target[yi_pred_idx])
-            #propagated_activation = hebbian_weights * source_activation
-            if source == 'a':
-                propagated_activation = np.matmul(self.weights.T, np.array(source_activation).reshape((-1, 1)))
-            else:
-                propagated_activation = np.matmul(self.weights, np.array(source_activation).reshape((-1, 1)))
+
+            propagated_activation = self.propagate_activation(source_activation, source_som=source)
 
             fig, axis_arr = plt.subplots(3, 2)
             axis_arr[0, 0].matshow(np.array(source_activation)
@@ -278,10 +275,7 @@ class HebbianModel(object):
     def make_prediction_knn(self, x, y, k, source_som, target_som, X_target, y_target, source):
         source_activation, pos_source_activation = source_som.get_activations(x)
         source_activation = np.array(source_activation).reshape((-1, 1))
-        if source == 'a':
-            target_activation = np.matmul(self.weights.T, np.array(source_activation).reshape((-1, 1)))
-        else:
-            target_activation = np.matmul(self.weights, np.array(source_activation).reshape((-1, 1)))
+        target_activation = self.propagate_activation(source_activation, source_som=source)
         hebbian_bmu_index = np.argmax(target_activation)
         pos_activations = list(target_som._neuron_locations(target_som._m, target_som._n))
         closest_activations, closest_indexes = self.get_bmu_k_closest(target_som, target_activation,
@@ -299,11 +293,7 @@ class HebbianModel(object):
                                      mode='none'):
         source_activation, pos_source_activation = source_som.get_activations(x)
         source_activation = np.array(source_activation).reshape((-1, 1))
-        if source == 'a':
-            target_activation = np.matmul(self.weights.T, np.array(source_activation).reshape((-1, 1)))
-        else:
-            target_activation = np.matmul(self.weights, np.array(source_activation).reshape((-1, 1)))
-
+        target_activation = self.propagate_activation(source_activation, source_som=source)
         # vote weighting alternatives
         if mode == 'softmax':
             # normalize using softmax. this brings some 0-valued votes to higher values
@@ -334,10 +324,7 @@ class HebbianModel(object):
     def make_prediction_sort(self, x, y, source_som, target_som, X_target, y_target, source):
         source_activation, _ = source_som.get_activations(x)
         source_activation = np.array(source_activation).reshape((-1, 1))
-        if source == 'a':
-            target_activation = np.matmul(self.weights.T, np.array(source_activation).reshape((-1, 1)))
-        else:
-            target_activation = np.matmul(self.weights, np.array(source_activation).reshape((-1, 1)))
+        target_activation = self.propagate_activation(source_activation, source_som=source)
         for i in range(len(target_activation)):
             hebbian_bmu_index = np.argmax(target_activation)
             bmu_class_list = target_som.bmu_class_dict[hebbian_bmu_index]
@@ -351,7 +338,6 @@ class HebbianModel(object):
             # discard this activation so that argmax does not find it again next
             # iteration
             target_activation[hebbian_bmu_index] = -1
-
 
     def threshold_activation(self, x):
         idx = x < self.threshold
