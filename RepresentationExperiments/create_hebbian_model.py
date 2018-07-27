@@ -87,8 +87,6 @@ if __name__ == '__main__':
                 tau=0.1, threshold=0.6)
     som_v = SOM(20, 30, v_dim, checkpoint_dir=somv_path, n_iterations=200,
                 tau=0.1, threshold=0.6)
-    som_a.restore_trained()
-    som_v.restore_trained()
 
     v_ys = np.array(v_ys)
     v_xs = np.array(v_xs)
@@ -96,6 +94,10 @@ if __name__ == '__main__':
     a_ys = np.array(a_ys)
     a_xs_train, a_xs_test, a_ys_train, a_ys_test = train_test_split(a_xs, a_ys, test_size=0.2)
     v_xs_train, v_xs_test, v_ys_train, v_ys_test = train_test_split(v_xs, v_ys, test_size=0.2)
+
+    som_a.train(a_xs_train)
+    som_v.train(v_xs_train)
+
     acc_a_list = []
     acc_v_list = []
     for n in range(1, 15):
