@@ -29,6 +29,7 @@ parser.add_argument('--algo', metavar='algo', type=str, default='sorted',
                     help='Algorithm choice')
 parser.add_argument('--source', metavar='source', type=str, default='v',
                     help='Source SOM')
+parser.add_argument('--train', action='store_true', default=False)
 args = parser.parse_args()
 exp_description = 'lr' + str(args.lr) + '_algo_' + args.algo + '_source_' + args.source
 
@@ -95,8 +96,12 @@ if __name__ == '__main__':
     a_xs_train, a_xs_test, a_ys_train, a_ys_test = train_test_split(a_xs, a_ys, test_size=0.2)
     v_xs_train, v_xs_test, v_ys_train, v_ys_test = train_test_split(v_xs, v_ys, test_size=0.2)
 
-    som_a.train(a_xs_train)
-    som_v.train(v_xs_train)
+    if args.train:
+        som_a.train(a_xs)
+        som_v.train(v_xs)
+    else:
+        som_a.restore_trained()
+        som_v.restore_trained()
 
     acc_a_list = []
     acc_v_list = []
@@ -120,6 +125,8 @@ if __name__ == '__main__':
         print('n={}, accuracy_a={}, accuracy_v={}'.format(n, accuracy_a, accuracy_v))
         acc_a_list.append(accuracy_a)
         acc_v_list.append(accuracy_v)
+        # make a plot - placeholder
+        hebbian_model.make_plot(a_xs_test[0], v_xs_test[0], v_ys_test[0], v_xs_fold[0], source='a')
     plt.plot(acc_a_list, color='teal')
     plt.plot(acc_v_list, color='orange')
     plt.savefig('./plots/'+exp_description+'.pdf', transparent=True)

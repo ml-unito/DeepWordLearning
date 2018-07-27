@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from RepresentationExperiments.distance_experiments import get_prototypes
 from sklearn.preprocessing import MinMaxScaler
 from utils.constants import Constants
-from utils.utils import softmax
+from utils.utils import softmax, get_plot_filename
 
 class HebbianModel(object):
 
@@ -121,8 +121,10 @@ class HebbianModel(object):
         source_activation = np.array(source_activation).reshape((-1, 1))
         if source_som == 'a':
             target_activation = np.matmul(self.weights.T, np.array(source_activation).reshape((-1, 1)))
+            to_som = self.som_v
         else:
             target_activation = np.matmul(self.weights, np.array(source_activation).reshape((-1, 1)))
+            to_som = self.som_a
         try:
             assert target_activation.shape[0] == (to_som._n * to_som._m)
         except AssertionError:
@@ -187,7 +189,7 @@ class HebbianModel(object):
             elif prediction_alg == 'knn2':
                 yi_pred = self.make_prediction_knn_weighted(x, y, 4, source_som, target_som, source)
             elif prediction_alg == 'sorted':
-                yi_pred = self.make_prediction_sort(x, y, source_som, target_som, source)
+                yi_pred = self.make_prediction_sort(x, source_som, target_som, source)
             else:
                 raise ValueError('Unknown evaluation algorithm ' + str(prediction_alg))
             y_pred.append(yi_pred)
@@ -220,20 +222,24 @@ class HebbianModel(object):
         yi_pred = y_target[yi_pred_idx]
         return yi_pred
 
-    def make_plot(self, x, y, x_true, X_target, source_som, target_som, source):
-        source_bmu, target_bmu = self.get_bmus_propagate(x, source_som=source)
+    def make_plot(self, x_source, x_target, y_target, X_target_all, source):
+        source_bmu, target_bmu = self.get_bmus_propagate(x_source, source_som=source)
 
         if source == 'a':
             hebbian_weights = self.weights[:][source_bmu]
+            source_som = self.som_a
+            target_som = self.som_v
         else:
             hebbian_weights = self.weights[source_bmu][:]
+            source_som = self.som_v
+            target_som = self.som_a
 
-        source_activation, _ = source_som.get_activations(x)
-        target_activation_true, _ = target_som.get_activations(x_true)
+        source_activation, _ = source_som.get_activations(x_source)
+        target_activation_true, _ = target_som.get_activations(x_target)
 
         # TODO: replicate some of the other make_prediction code to get this
-        yi_pred = self.make_prediction_sorted(x, y, source_som, target_som, X_target, y_target, source)
-        target_activation_pred, _ = target_som.get_activations(X_target[yi_pred_idx])
+        yi_pred = self.make_prediction_sort(x_source, source_som, target_som, source)
+        target_activation_pred, _ = target_som.get_activations(X_target_all[yi_pred])
         propagated_activation = self.propagate_activation(source_activation, source_som=source)
 
         fig, axis_arr = plt.subplots(3, 2)
@@ -245,7 +251,7 @@ class HebbianModel(object):
         axis_arr[0, 1].set_title('Propagation of activation to target')
         axis_arr[1, 0].matshow(np.array(target_activation_true)
                                .reshape((source_som._m, source_som._n)))
-        axis_arr[1, 0].set_title('Target SOM activation true label ({})'.format(y))
+        axis_arr[1, 0].set_title('Target SOM activation true label ({})'.format(y_target))
         axis_arr[1, 1].matshow(np.array(target_activation_pred)
                                .reshape((source_som._m, source_som._n)))
         axis_arr[1, 1].set_title('Target SOM activation predicted label ({})'.format(yi_pred))
@@ -254,7 +260,8 @@ class HebbianModel(object):
         axis_arr[2, 1].set_title('Hebbian weights of source BMU')
         axis_arr[2, 0].matshow(np.zeros((source_som._m, source_som._n)))
         plt.tight_layout()
-        plt.savefig(os.path.join(Constants.PLOT_FOLDER, str(n)+'.png'))
+        filename = get_plot_filename(Constants.PLOT_FOLDER)
+        plt.savefig(os.path.join(Constants.PLOT_FOLDER, filename))
         plt.clf()
 
     def get_bmu_k_closest(self, som, activations, pos_activations, k):
@@ -326,7 +333,7 @@ class HebbianModel(object):
         print(class_count)
         return np.argmax(class_count)
 
-    def make_prediction_sort(self, x, y, source_som, target_som, source):
+    def make_prediction_sort(self, x, source_som, target_som, source):
         source_activation, _ = source_som.get_activations(x)
         source_activation = np.array(source_activation).reshape((-1, 1))
         target_activation = self.propagate_activation(source_activation, source_som=source)

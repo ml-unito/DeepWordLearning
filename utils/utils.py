@@ -7,6 +7,7 @@ import csv
 import sys
 import json
 import os
+import datetime
 from sklearn.decomposition import PCA
 from utils.constants import Constants
 
@@ -165,3 +166,10 @@ def softmax(x):
     e_x = np.exp(x - np.max(x))
     out = e_x / e_x.sum()
     return out
+
+def get_plot_filename(folder_path):
+    date_str = datetime.datetime.now().strftime("%Y-%m-%d")
+    i = 0
+    while os.path.exists(os.path.join(folder_path, date_str + "_" + str(i)) + '.png'):
+        i += 1
+    return date_str + "_" + str(i) + '.png'
