@@ -31,13 +31,16 @@ if __name__ == '__main__':
         som_v = SOM(5, 5, v_dim, checkpoint_dir=somv_path, n_iterations=100)
         som_a.train(a_xs)
         som_v.train(v_xs)
+        som_a.memorize_examples_by_class(a_xs, a_ys)
+        som_v.memorize_examples_by_class(v_xs, v_ys)
         hebbian_model = HebbianModel(som_a, som_v, a_dim=a_dim,
                                      v_dim=v_dim, n_presentations=1, learning_rate=1, n_classes=n_classes,
                                      checkpoint_dir=hebbian_path)
         print('Training...')
         hebbian_model.train(a_xs, v_xs)
         print('Evaluating...')
-        accuracy = hebbian_model.evaluate(a_xs, v_xs, a_ys, v_ys, source='a', img_path = './')
+        accuracy = hebbian_model.evaluate(a_xs, v_xs, a_ys, v_ys, source='a', prediction_alg='knn2')
+        hebbian_model.make_plot(a_xs[0], v_xs[0], v_ys[0], v_xs, source='a')
         acc.append(accuracy)
         print('n={}, accuracy={}'.format(1, accuracy))
     print(sum(acc)/len(acc))
