@@ -38,7 +38,7 @@ class SOM(object):
 
 
     def __init__(self, m, n, dim, checkpoint_dir=None, n_iterations=50, alpha=None, sigma=None,
-                 tau=0.5, threshold=0.6):
+                 tau=0.5, threshold=0.6, batch_size=500):
         """
         Initializes all necessary components of the TensorFlow
         Graph.
@@ -70,6 +70,8 @@ class SOM(object):
         self.tau = tau
         self.threshold = threshold
 
+        self.batch_size = batch_size
+
         self._n_iterations = abs(int(n_iterations))
 
         if checkpoint_dir is None:
@@ -99,8 +101,8 @@ class SOM(object):
             #We need to assign them as attributes to self, since they
             #will be fed in during training
 
-            #The training vector
-            self._vect_input = tf.placeholder("float", [dim])
+            #The training vectors
+            self._vect_input = tf.placeholder("float", [None, dim])
             #Iteration number
             self._iter_input = tf.placeholder("float")
 
@@ -109,52 +111,38 @@ class SOM(object):
             #an attribute to self, since all the rest will be executed
             #automatically during training
 
-            #To compute the Best Matching Unit given a vector
-            #Basically calculates the Euclidean distance between every
-            #neuron's weightage vector and the input, and returns the
-            #index of the neuron which gives the least value
-            bmu_index = tf.argmin(tf.sqrt(tf.reduce_sum(
-                tf.pow(tf.subtract(self._weightage_vects, tf.stack(
-                    [self._vect_input for i in range(m*n)])), 2), 1)),
-                                  0)
+            bmu_indexes = self._get_bmu()
 
             #This will extract the location of the BMU based on the BMU's
-            #index
-            slice_input = tf.pad(tf.reshape(bmu_index, [1]),
-                                 np.array([[0, 1]]))
-            bmu_loc = tf.reshape(tf.slice(self._location_vects, slice_input,
-                                          tf.constant(np.array([1, 2]))),
-                                 [2])
-
-
+            #index. This has dimensionality [batch_size, 2] where 2 is (i, j),
+            #the location of the BMU in the map
+            bmu_loc = tf.gather(self._location_vects, bmu_indexes)
 
             #To compute the alpha and sigma values based on iteration
             #number
-            learning_rate_op = tf.subtract(1.0, tf.div(self._iter_input,
-                                                  self._n_iterations))
-            _alpha_op = tf.multiply(alpha, learning_rate_op)
-            _sigma_op = tf.multiply(sigma, learning_rate_op)
+            learning_rate = 1.0 - tf.div(self._iter_input, self._n_iterations)
+            _alpha_op = alpha * learning_rate
+            _sigma_op = (sigma * learning_rate) ** 2
 
             #Construct the op that will generate a vector with learning
             #rates for all neurons, based on iteration number and location
             #wrt BMU.
-            bmu_distance_squares = tf.reduce_sum(tf.pow(tf.subtract(
-                self._location_vects, tf.stack(
-                    [bmu_loc for i in range(m*n)])), 2), 1)
+
+            #Tensor of shape [batch_size, num_neurons] containing the distances
+            #between the BMU and all other neurons, for each batch
+            bmu_distance_squares = self._get_bmu_distances(bmu_loc)
+
             neighbourhood_func = tf.exp(tf.negative(tf.div(tf.cast(
-                bmu_distance_squares, "float32"), tf.pow(_sigma_op, 2))))
-            learning_rate_op = tf.multiply(_alpha_op, neighbourhood_func)
+                bmu_distance_squares, "float32"), _sigma_op)))
+            learning_rate_op = _alpha_op * neighbourhood_func
 
             #Finally, the op that will use learning_rate_op to update
             #the weightage vectors of all neurons based on a particular
             #input
-            learning_rate_multiplier = tf.stack([tf.tile(tf.slice(
-                learning_rate_op, np.array([i]), np.array([1])), [dim])
-                                               for i in range(m*n)])
-            weightage_delta = tf.multiply(
-                learning_rate_multiplier,
-                tf.subtract(tf.stack([self._vect_input for i in range(m*n)]),
-                       self._weightage_vects))
+            learning_rate_matrix = _alpha_op * neighborhood_func
+
+            weightage_delta = self._get_weight_delta(learning_rate_matrix)
+
             new_weightages_op = tf.add(self._weightage_vects,
                                        weightage_delta)
             self._training_op = tf.assign(self._weightage_vects,
@@ -170,6 +158,29 @@ class SOM(object):
             ##INITIALIZE VARIABLES
             init_op = tf.global_variables_initializer()
             self._sess.run(init_op)
+
+    def _get_weight_delta(self, learning_rate_marix):
+        """
+        """
+        diff_matrix = tf.cast(self.weightage_vects - tf.expand_dims(self._vect_input, 1), "float32")
+        delta = tf.reduce_mean(tf.expand_dims(learning_rate_matrix, 2) * diff_matrix, 0)
+        return delta
+
+    def _get_bmu_distances(self, bmu_loc):
+        """
+        """
+        squared_distances = tf.reduce_sum((_location_vects - tf.expand_dims(bmu_loc, 1)) ** 2, 2)
+        return squared_distances
+
+    def _get_bmu(self):
+        """
+        Returns the BMU for each example in self._vect_input. The return value's dimensionality
+        is therefore [batch_size]
+        """
+        squared_differences = (self._weightage_vects - tf.expand_dims(self._vect_input, 1)) ** 2
+        squared_distances = tf.reduce_sum(squared_differences, 2)
+        bmu_index = tf.argmin(squared_distances, 1)
+        return bmu_index
 
     def _neuron_locations(self, m, n):
         """
