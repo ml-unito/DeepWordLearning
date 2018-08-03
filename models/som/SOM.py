@@ -120,9 +120,9 @@ class SOM(object):
 
             #To compute the alpha and sigma values based on iteration
             #number
-            learning_rate = 1.0 - tf.div(self._iter_input, self._n_iterations)
+            learning_rate = 1.0 - tf.div(self._iter_input, tf.cast(self._n_iterations, "float"))
             _alpha_op = alpha * learning_rate
-            _sigma_op = (sigma * learning_rate) ** 2
+            _sigma_op = sigma * learning_rate
 
             #Construct the op that will generate a vector with learning
             #rates for all neurons, based on iteration number and location
@@ -133,18 +133,18 @@ class SOM(object):
             bmu_distance_squares = self._get_bmu_distances(bmu_loc)
 
             neighbourhood_func = tf.exp(tf.negative(tf.div(tf.cast(
-                bmu_distance_squares, "float32"), _sigma_op)))
+                bmu_distance_squares, "float32"), tf.pow(_sigma_op, 2))))
             learning_rate_op = _alpha_op * neighbourhood_func
 
             #Finally, the op that will use learning_rate_op to update
             #the weightage vectors of all neurons based on a particular
             #input
-            learning_rate_matrix = _alpha_op * neighborhood_func
+            learning_rate_matrix = _alpha_op * neighbourhood_func
 
-            weightage_delta = self._get_weight_delta(learning_rate_matrix)
+            self.weightage_delta = self._get_weight_delta(learning_rate_matrix)
 
             new_weightages_op = tf.add(self._weightage_vects,
-                                       weightage_delta)
+                                       self.weightage_delta)
             self._training_op = tf.assign(self._weightage_vects,
                                           new_weightages_op)
 
@@ -159,17 +159,18 @@ class SOM(object):
             init_op = tf.global_variables_initializer()
             self._sess.run(init_op)
 
-    def _get_weight_delta(self, learning_rate_marix):
+    def _get_weight_delta(self, learning_rate_matrix):
         """
         """
-        diff_matrix = tf.cast(self.weightage_vects - tf.expand_dims(self._vect_input, 1), "float32")
-        delta = tf.reduce_mean(tf.expand_dims(learning_rate_matrix, 2) * diff_matrix, 0)
+        diff_matrix = tf.cast(tf.expand_dims(self._vect_input, 1) - self._weightage_vects, "float32")
+        mul = tf.expand_dims(learning_rate_matrix, 2) * diff_matrix
+        delta = tf.reduce_mean(mul, 0)
         return delta
 
     def _get_bmu_distances(self, bmu_loc):
         """
         """
-        squared_distances = tf.reduce_sum((_location_vects - tf.expand_dims(bmu_loc, 1)) ** 2, 2)
+        squared_distances = tf.reduce_sum((self._location_vects - tf.expand_dims(bmu_loc, 1)) ** 2, 2)
         return squared_distances
 
     def _get_bmu(self):
@@ -206,16 +207,24 @@ class SOM(object):
           for iter_no in range(self._n_iterations):
               if iter_no % 10 == 0:
                   print('Iteration {}'.format(iter_no))
+                  delta = self._sess.run(self.weightage_delta, feed_dict={self._vect_input: input_vects[0:1],
+                             self._iter_input: iter_no})
+                  assert not np.any(np.isnan(delta))
               #Train with each vector one by one
               count = 0
-              for input_vect in input_vects:
+              num_batches = int(np.ceil(len(input_vects) / self.batch_size))
+              for i in range(num_batches):
                   count = count + 1
-                  self._sess.run(self._training_op,
-                                 feed_dict={self._vect_input: input_vect,
+                  start = self.batch_size * i
+                  end = self.batch_size * (i+1)
+                  _, a = self._sess.run([self._training_op, self.weightage_delta],
+                                 feed_dict={self._vect_input: input_vects[start:end],
                                             self._iter_input: iter_no})
+
           #Store a centroid grid for easy retrieval later on
           centroid_grid = [[] for i in range(self._m)]
           self._weightages = list(self._sess.run(self._weightage_vects))
+          #print(self._weightages)
           self._locations = list(self._sess.run(self._location_vects))
           for i, loc in enumerate(self._locations):
               centroid_grid[loc[0]].append(self._weightages[i])
@@ -358,3 +367,6 @@ class SOM(object):
             plt.text(m[1], m[0], color_names[y[i]], ha='center', va='center',
                      bbox=dict(facecolor=color_names[y[i]], alpha=0.5, lw=0))
         plt.savefig(os.path.join(Constants.PLOT_FOLDER, plot_name))
+
+if __name__ == '__main__':
+    pass
