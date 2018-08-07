@@ -1,7 +1,7 @@
 from models.som.SOM import SOM
 from models.som.HebbianModel import HebbianModel
 from utils.constants import Constants
-from utils.utils import from_csv_with_filenames, from_csv_visual, from_csv, to_csv
+from utils.utils import from_csv_with_filenames, from_csv_visual_10classes, from_csv, to_csv
 from sklearn.utils import shuffle
 from sklearn.preprocessing import MinMaxScaler
 from data.dataset import OneHotDataset

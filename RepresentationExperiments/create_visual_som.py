@@ -2,7 +2,7 @@ from models.som.SOM import SOM
 from models.som.SOMTest import showSom
 import numpy as np
 from utils.constants import Constants
-from utils.utils import from_csv_visual
+from utils.utils import from_csv_visual_10classes
 from sklearn.preprocessing import MinMaxScaler
 import os
 import logging
@@ -14,7 +14,7 @@ N = 1000
 lenExample = 2048
 
 if __name__ == '__main__':
-    v_xs, v_ys = from_csv_visual(visual_data_path)
+    v_xs, v_ys = from_csv_visual_10classes(visual_data_path)
     v_xs = MinMaxScaler().fit_transform(v_xs)
 
     som = SOM(20, 30, lenExample,

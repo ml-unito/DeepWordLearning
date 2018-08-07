@@ -148,7 +148,7 @@ def infer_label_10classes(label_string, labels_dict):
     label_string = label_string.split('/')[5]
     return labels_dict[label_string]
 
-def from_csv_visual(path):
+def from_csv_visual_10classes(path):
     f = open(path,'r')
     labels_dict_path = os.path.join(Constants.DATA_FOLDER, 'imagenet-labels.json')
     labels_dict = json.load(open(labels_dict_path))
