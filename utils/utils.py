@@ -162,6 +162,45 @@ def from_csv_visual_10classes(path):
     f.close()
     return xs, ys
 
+def synsets_txt_to_dict(txt_path):
+    """
+    Reads a file such as thesis_synsets_descr.txt, which is organized this way:
+
+    [synset name] [description] \n
+    [synset name] [description] \n
+    ...
+
+    And returns a dictionary in which the values are labels from 0 to 99 and the
+    keys are the synset names.
+    """
+    f = open(txt_path, 'r')
+    d = {}
+    for i, l in enumerate(f):
+        synset = l.split(" ")[0]
+        d[synset] = i
+    print(d)
+    return d
+
+
+def from_csv_visual_100classes(path):
+    f = open(path,'r')
+    labels_txt_path = os.path.join(Constants.DATA_FOLDER, '100classes',
+                                   'thesis_synsets_fix.txt')
+    synset_dict = synsets_txt_to_dict(labels_txt_path)
+    xs = []
+    ys = []
+    for l in f:
+        lSplit = l.split(',')
+        data = lSplit[1:]
+        img_path = lSplit[0]
+        img_name = img_path.split('/')[6]
+        synset = img_name.split('_')[0]
+        assert len(img_name.split('_')) == 2
+        xs.append(np.array(data).astype(float))
+        ys.append(synset_dict[synset])
+    f.close()
+    return xs, ys
+
 def softmax(x):
     e_x = np.exp(x - np.max(x))
     out = e_x / e_x.sum()
