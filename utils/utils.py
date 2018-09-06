@@ -140,13 +140,13 @@ def from_csv_with_filenames(path):
         for line in csvfile:
             l = line.split(',')
             xs.append(np.asfarray(l[1:-1]))
-            ys.append(l[-1].strip('\n'))
+            ys.append(int(l[-1].strip('\n')))
             filenames.append(l[0])
     return xs, ys, filenames
 
 def infer_label_10classes(label_string, labels_dict):
     label_string = label_string.split('/')[5]
-    return labels_dict[label_string]
+    return int(labels_dict[label_string])
 
 def from_csv_visual_10classes(path):
     f = open(path,'r')
@@ -178,7 +178,6 @@ def synsets_txt_to_dict(txt_path):
     for i, l in enumerate(f):
         synset = l.split(" ")[0]
         d[synset] = i
-    print(d)
     return d
 
 
