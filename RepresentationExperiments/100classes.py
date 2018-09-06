@@ -12,12 +12,14 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-soma_path = os.path.join(Constants.DATA_FOLDER, '100classes', 'audio_model_25t', '')
-somv_path = os.path.join(Constants.DATA_FOLDER, '100classes', 'visual_model_tau', '')
+random_seed = 42 # use the same one if you want to avoid training SOMs all over again
+
+soma_path = os.path.join(Constants.DATA_FOLDER, '100classes', 'audio_model', '')
+somv_path = os.path.join(Constants.DATA_FOLDER, '100classes', 'visual_model', '')
 hebbian_path = os.path.join(Constants.DATA_FOLDER, '100classes', 'hebbian_model', '')
 audio_data_path = os.path.join(Constants.DATA_FOLDER,
                                '100classes',
-                               'audio_data_25t.csv')
+                               'audio100classes.csv')
 visual_data_path = os.path.join(Constants.DATA_FOLDER,
                                 '100classes',
                                 'VisualInputTrainingSet.csv')
@@ -34,7 +36,7 @@ args = parser.parse_args()
 exp_description = 'lr' + str(args.lr) + '_algo_' + args.algo + '_source_' + args.source
 
 
-def create_folds(a_xs, v_xs, a_ys, v_ys, n_folds=1, n_classes=10):
+def create_folds(a_xs, v_xs, a_ys, v_ys, n_folds=1, n_classes=100):
     '''
     In this context, a fold is an array of data that has n_folds examples
     from each class.
@@ -81,17 +83,26 @@ if __name__ == '__main__':
     v_xs = MinMaxScaler().fit_transform(v_xs)
     a_dim = len(a_xs[0])
     v_dim = len(v_xs[0])
-    som_a = SOM(20, 30, a_dim, checkpoint_dir=soma_path, n_iterations=1000,
+    som_a = SOM(20, 30, a_dim, checkpoint_dir=soma_path, n_iterations=10000,
                  tau=0.1, threshold=0.6, batch_size=300)
-    som_v = SOM(20, 30, v_dim, checkpoint_dir=somv_path, n_iterations=1000,
+    som_v = SOM(20, 30, v_dim, checkpoint_dir=somv_path, n_iterations=10000,
                  tau=0.1, threshold=0.6, batch_size=300)
 
     v_ys = np.array(v_ys)
     v_xs = np.array(v_xs)
     a_xs = np.array(a_xs)
     a_ys = np.array(a_ys)
-    a_xs_train, a_xs_test, a_ys_train, a_ys_test = train_test_split(a_xs, a_ys, test_size=0.2)
-    v_xs_train, v_xs_test, v_ys_train, v_ys_test = train_test_split(v_xs, v_ys, test_size=0.2)
+    a_xs_train, a_xs_test, a_ys_train, a_ys_test = train_test_split(a_xs, a_ys, test_size=0.2,
+                                                                    random_state=random_seed)
+    v_xs_train, v_xs_test, v_ys_train, v_ys_test = train_test_split(v_xs, v_ys, test_size=0.2,
+                                                                    random_state=random_seed)
+
+    if args.train:
+        som_a.train(a_xs_train)
+        som_v.train(v_xs_train)
+    else:
+        som_a.restore_trained()
+        som_v.restore_trained()
 
     acc_a_list = []
     acc_v_list = []
@@ -99,21 +110,17 @@ if __name__ == '__main__':
         hebbian_model = HebbianModel(som_a, som_v, a_dim=a_dim,
                                      v_dim=v_dim, n_presentations=n,
                                      checkpoint_dir=hebbian_path,
-                                     learning_rate=args.lr)
-        if args.train:
-            som_a.train(a_xs_train)
-            som_v.train(v_xs_train)
-        else:
-            som_a.restore_trained()
-            som_v.restore_trained()
+                                     learning_rate=args.lr,
+                                     n_classes=100)
 
         a_xs_fold, v_xs_fold, a_ys_fold, v_ys_fold = create_folds(a_xs_train, v_xs_train, a_ys_train, v_ys_train, n_folds=n)
+        print('Training...')
+        hebbian_model.train(a_xs_fold, v_xs_fold)
+        print('Memorizing...')
         # prepare the soms for alternative matching strategies - this is not necessary
         # if prediction_alg='regular' in hebbian_model.evaluate(...) below
         som_a.memorize_examples_by_class(a_xs_train, a_ys_train)
         som_v.memorize_examples_by_class(v_xs_train, v_ys_train)
-        print('Training...')
-        hebbian_model.train(a_xs_fold, v_xs_fold)
         print('Evaluating...')
         accuracy_a = hebbian_model.evaluate(a_xs_test, v_xs_test, a_ys_test, v_ys_test, source='a',
                                           prediction_alg=args.algo)
