@@ -149,10 +149,7 @@ class SOM(object):
                                           new_weightages_op)
 
             ##INITIALIZE SESSION
-            config = tf.ConfigProto(
-                  device_count = {'GPU': 0}
-              )
-            self._sess  = tf.Session(config=config)
+            self._sess = tf.Session()
 
 
             ##INITIALIZE VARIABLES
@@ -210,7 +207,6 @@ class SOM(object):
                   delta = self._sess.run(self.weightage_delta, feed_dict={self._vect_input: input_vects[0:1],
                              self._iter_input: iter_no})
                   assert not np.any(np.isnan(delta))
-              #Train with each vector one by one
               count = 0
               num_batches = int(np.ceil(len(input_vects) / self.batch_size))
               for i in range(num_batches):
