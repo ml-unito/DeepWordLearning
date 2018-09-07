@@ -83,8 +83,10 @@ def cluster_compactness(xs, ys, num_classes):
             for k in cluster_belonging_dict[i][pos+1:]:
                 x2 = xs[k]
                 intra_temp += np.linalg.norm(x1-x2)
-                inter_cluster_distance += np.linalg.norm(x1-x2)
         intra_cluster_distance[i] = intra_temp / len(cluster_belonging_dict[i])
+    for i, x1 in enumerate(xs):
+        for x2 in xs[i+1:]:
+            inter_cluster_distance += np.linalg.norm(x1-x2)
     inter_cluster_distance /= len(xs)
     print(intra_cluster_distance/inter_cluster_distance)
 
