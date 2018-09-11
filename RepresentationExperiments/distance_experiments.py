@@ -11,17 +11,6 @@ from sklearn.cluster import KMeans, MiniBatchKMeans
 
 random_seed = 42
 
-parser = argparse.ArgumentParser(description='Analyze representation quality.')
-parser.add_argument('--csv-path', metavar='csv_path', type=str, required=True, help='The csv file with the extracted representations.')
-parser.add_argument('--classes100', action='store_true',
-                    help='Specify whether you are analyzing \
-                    a file with representations from 100 classes, as the loading functions are different.',
-                    default=False)
-parser.add_argument('--is-audio', action='store_true', default=False,
-                    help='Specify whether the csv contains audio representations, as the loading functions are different.')
-parser.add_argument('--cluster', action='store_true', default=False)
-
-args = parser.parse_args()
 
 def get_prototypes(xs, ys):
     prototype_dict = {unique_y: [] for unique_y in set(ys)}
@@ -83,13 +72,27 @@ def cluster_compactness(xs, ys, num_classes):
             for k in cluster_belonging_dict[i][pos+1:]:
                 x2 = xs[k]
                 intra_temp += np.linalg.norm(x1-x2)
-                inter_cluster_distance += np.linalg.norm(x1-x2)
         intra_cluster_distance[i] = intra_temp / len(cluster_belonging_dict[i])
+    for i, x1 in enumerate(xs):
+        for x2 in xs[i+1:]:
+            inter_cluster_distance += np.linalg.norm(x1-x2)
     inter_cluster_distance /= len(xs)
     print(intra_cluster_distance/inter_cluster_distance)
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Analyze representation quality.')
+    parser.add_argument('--csv-path', metavar='csv_path', type=str, required=True, help='The csv file with the extracted representations.')
+    parser.add_argument('--classes100', action='store_true',
+                        help='Specify whether you are analyzing \
+                        a file with representations from 100 classes, as the loading functions are different.',
+                        default=False)
+    parser.add_argument('--is-audio', action='store_true', default=False,
+                        help='Specify whether the csv contains audio representations, as the loading functions are different.')
+    parser.add_argument('--cluster', action='store_true', default=False)
+
+    args = parser.parse_args()
+
     if not args.classes100:
         num_classes = 10
         if not args.is_audio:
