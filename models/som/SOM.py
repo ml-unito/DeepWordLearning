@@ -37,8 +37,9 @@ class SOM(object):
     _trained = False
 
 
-    def __init__(self, m, n, dim, checkpoint_dir=None, n_iterations=50, alpha=None, sigma=None,
-                 tau=0.5, threshold=0.6, batch_size=500, num_classes=10, logs_path='./data/tblogs/'):
+    def __init__(self, m, n, dim, n_iterations=50, alpha=None, sigma=None,
+                 tau=0.5, threshold=0.6, batch_size=500, num_classes=10,
+                 checkpoint_dir = None, data='audio'):
         """
         Initializes all necessary components of the TensorFlow
         Graph.
@@ -58,14 +59,14 @@ class SOM(object):
         self._m = m
         self._n = n
         if alpha is None:
-            alpha = 0.3
+            self.alpha = 0.3
         else:
-            alpha = float(alpha)
+            self.alpha = float(alpha)
 
         if sigma is None:
-            sigma = max(m, n) / 2.0
+            self.sigma = max(m, n) / 2.0
         else:
-            sigma = float(sigma)
+            self.sigma = float(sigma)
 
         self.tau = tau
         self.threshold = threshold
@@ -74,10 +75,13 @@ class SOM(object):
 
         self._n_iterations = abs(int(n_iterations))
 
-        self.logs_path = logs_path
+        self.logs_path = Constants.DATA_FOLDER + '/tblogs/' + self.get_experiment_name(data)
+
+        if not os.path.exists(self.logs_path):
+            os.makedirs(self.logs_path)
 
         if checkpoint_dir is None:
-          self.checkpoint_dir = './model100ClassesVisivo/'
+          self.checkpoint_dir = Constants.DATA_FOLDER + '/saved_models/' + self.get_experiment_name(data)
         else:
           self.checkpoint_dir = checkpoint_dir
 
@@ -140,8 +144,8 @@ class SOM(object):
             #To compute the alpha and sigma values based on iteration
             #number
             learning_rate = 1.0 - tf.div(self._iter_input, tf.cast(self._n_iterations, "float"))
-            _alpha_op = alpha * learning_rate
-            _sigma_op = sigma * learning_rate
+            _alpha_op = self.alpha * learning_rate
+            _sigma_op = self.sigma * learning_rate
 
             #Construct the op that will generate a vector with learning
             #rates for all neurons, based on iteration number and location
@@ -219,6 +223,7 @@ class SOM(object):
         taken as starting conditions for training.
         """
         with self._sess:
+            saver = tf.train.Saver()
             summary_writer = tf.summary.FileWriter(self.logs_path)
             for iter_no in range(self._n_iterations):
                 if iter_no % 10 == 0:
@@ -255,14 +260,22 @@ class SOM(object):
                                              self._test_compactness: test_comp})
                 summary_writer.add_summary(summary, global_step=iter_no)
 
+                #Save model periodically
+                if iter_no % 10 == 0:
+                    if not os.path.exists(self.checkpoint_dir):
+                        os.makedirs(self.checkpoint_dir)
+                    saver.save(self._sess,
+                               os.path.join(self.checkpoint_dir,
+                                           'model_'+str(iter_no)+'epoch.ckpt'),
+                               1)
+
             for i, loc in enumerate(self._locations):
                 centroid_grid[loc[0]].append(self._weightages[i])
             self._centroid_grid = centroid_grid
 
             self._trained = True
 
-            # Store the trained model
-            saver = tf.train.Saver()
+            # Save the final model
             if not os.path.exists(self.checkpoint_dir):
                 os.makedirs(self.checkpoint_dir)
             saver.save(self._sess,
@@ -294,6 +307,10 @@ class SOM(object):
             print('NO CHECKPOINT FOUND')
             return False
 
+    def get_experiment_name(self, data):
+        return data + '_tau' + str(self.tau) + '_thrsh' \
+               + str(self.threshold) + '_sigma' + str(self.sigma) + '_batch' + str(self.batch_size) \
+               + '_alpha' + str(self.alpha)
 
     def get_centroids(self):
         """

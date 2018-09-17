@@ -83,10 +83,10 @@ if __name__ == '__main__':
     v_xs = MinMaxScaler().fit_transform(v_xs)
     a_dim = len(a_xs[0])
     v_dim = len(v_xs[0])
-    som_a = SOM(20, 30, a_dim, checkpoint_dir=soma_path, n_iterations=10000,
-                 tau=0.1, threshold=0.6, batch_size=300)
-    som_v = SOM(20, 30, v_dim, checkpoint_dir=somv_path, n_iterations=10000,
-                 tau=0.1, threshold=0.6, batch_size=300)
+    som_a = SOM(20, 30, a_dim, checkpoint_dir=soma_path, n_iterations=1350,
+                 tau=0.1, threshold=0.6, batch_size=300, data='audio')
+    som_v = SOM(20, 30, v_dim, checkpoint_dir=somv_path, n_iterations=1350,
+                 tau=0.1, threshold=0.6, batch_size=300, data='visual')
 
     v_ys = np.array(v_ys)
     v_xs = np.array(v_xs)
