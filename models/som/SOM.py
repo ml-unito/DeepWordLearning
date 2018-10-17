@@ -25,6 +25,7 @@ matplotlib.rcParams.update({'font.size': 8})
 import matplotlib.pyplot as plt
 from utils.constants import Constants
 from matplotlib import colors
+from scipy.stats import f as fisher_f
 
 
 class SOM(object):
@@ -119,6 +120,8 @@ class SOM(object):
             #Summaries placeholder
             self._train_compactness = tf.placeholder("float")
             self._test_compactness = tf.placeholder("float")
+            self._train_population_convergence = tf.placeholder("float")
+            self._test_population_convergence = tf.placeholder("float")
 
             ##SUMMARIES
             train_mean, train_std = tf.nn.moments(self._train_compactness, axes=[0])
@@ -127,6 +130,9 @@ class SOM(object):
             tf.summary.scalar("Test Mean Compactness", test_mean)
             tf.summary.scalar("Train Compactness Variance", train_std)
             tf.summary.scalar("Test Compactness Variance", test_std)
+            tf.summary.scalar("Train Population Convergence", self._train_population_convergence)
+            tf.summary.scalar("Test Population Convergence", self._test_population_convergence)
+
             self.summaries = tf.summary.merge_all()
 
             ##CONSTRUCT TRAINING OP PIECE BY PIECE
@@ -249,15 +255,27 @@ class SOM(object):
 
                 #Run summaries
                 if input_classes is not None:
-                    train_comp = self.class_compactness(input_vects, input_classes)
+                    #train_comp = self.class_compactness(input_vects, input_classes)
+                    train_comp = [0]
+                    train_conv = self.population_based_convergence(input_vects)
+                    print(train_conv)
                 else:
                     train_comp = [0]
+                    train_conv = [0]
                 if test_classes is not None:
-                    test_comp = self.class_compactness(test_vects, test_classes)
+                    #test_comp = self.class_compactness(test_vects, test_classes)
+                    test_comp = [0]
+                    test_conv = self.population_based_convergence(test_vects)
+                    print(test_conv)
                 else:
                     test_comp = [0]
-                summary = self._sess.run(self.summaries, feed_dict={self._train_compactness: train_comp,
-                                             self._test_compactness: test_comp})
+                    test_conv = [0]
+                summary = self._sess.run(self.summaries,
+                                         feed_dict={self._train_compactness: train_comp,
+                                                    self._test_compactness: test_comp,
+                                                    self._train_population_convergence: train_conv,
+                                                    self._test_population_convergence: test_conv
+                                                    })
                 summary_writer.add_summary(summary, global_step=iter_no)
 
                 #Save model periodically
@@ -435,6 +453,40 @@ class SOM(object):
         inter_class_distance /= len(xs)
         class_compactness = intra_class_distance/inter_class_distance
         return class_compactness
+
+    def population_based_convergence(self, xs, alpha=0.05):
+        '''
+        Population based convergence is a feature-by-feature convergence criterion.
+        This implementation is based on "A Convergence Criterion for Self-Organizing
+        Maps" by B. Ott, 2012.
+        '''
+        weights = self._sess.run(self._weightage_vects)
+        data_feature_mean = np.mean(xs, axis=0) # x1 in the paper, eq. 17
+        neuron_feature_mean = np.mean(weights, axis=0) # x2 in the paper, eq.17
+        data_feature_var = np.var(xs, axis=0)
+        neuron_feature_var = np.var(weights, axis=0)
+        z = 0.2 # dunno atm
+
+        # mean convergence
+        lhs = (data_feature_mean - neuron_feature_mean) \
+              - z * np.sqrt(data_feature_var / len(data_feature_mean) + neuron_feature_var / len(neuron_feature_mean))
+
+        rhs = (data_feature_mean - neuron_feature_mean) \
+              - z * np.sqrt(data_feature_var / len(data_feature_mean) + neuron_feature_var / len(neuron_feature_mean))
+
+        mean_stat = np.multiply(lhs, rhs)
+        mean_pos_converged = np.where(mean_stat[mean_stat<0])
+
+        # std convergence
+        fisher_f_stat = fisher_f(len(data_feature_var), len(neuron_feature_var)).pdf(alpha)
+        lhs = (data_feature_var / neuron_feature_var) * (1 / fisher_f_stat)
+        rhs = (data_feature_var / neuron_feature_var) * fisher_f_stat
+
+        var_stat = np.multiply(lhs, rhs)
+        var_pos_converged = np.where(var_stat[var_stat<0])
+
+        return len(np.intersect1d(mean_pos_converged, var_pos_converged, assume_unique=True))
+
 
 
 if __name__ == '__main__':

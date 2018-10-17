@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 
 random_seed = 42 # use the same one if you want to avoid training SOMs all over again
 
-soma_path = os.path.join(Constants.DATA_FOLDER, '100classes', 'audio_model', '')
-somv_path = os.path.join(Constants.DATA_FOLDER, '100classes', 'visual_model', '')
-hebbian_path = os.path.join(Constants.DATA_FOLDER, '100classes', 'hebbian_model', '')
+soma_path = os.path.join(Constants.DATA_FOLDER, '100classes', 'audio_model_new', '')
+somv_path = os.path.join(Constants.DATA_FOLDER, '100classes', 'visual_model_new', '')
+hebbian_path = os.path.join(Constants.DATA_FOLDER, '100classes', 'hebbian_model_new', '')
 audio_data_path = os.path.join(Constants.DATA_FOLDER,
                                '100classes',
                                'audio100classes.csv')
@@ -83,9 +83,9 @@ if __name__ == '__main__':
     v_xs = MinMaxScaler().fit_transform(v_xs)
     a_dim = len(a_xs[0])
     v_dim = len(v_xs[0])
-    som_a = SOM(20, 30, a_dim, checkpoint_dir=soma_path, n_iterations=1350,
+    som_a = SOM(20, 30, a_dim, checkpoint_dir=soma_path, n_iterations=2000,
                  tau=0.1, threshold=0.6, batch_size=300, data='audio')
-    som_v = SOM(20, 30, v_dim, checkpoint_dir=somv_path, n_iterations=1350,
+    som_v = SOM(20, 30, v_dim, checkpoint_dir=somv_path, n_iterations=200,
                  tau=0.1, threshold=0.6, batch_size=300, data='visual')
 
     v_ys = np.array(v_ys)
@@ -98,8 +98,8 @@ if __name__ == '__main__':
                                                                     random_state=random_seed)
 
     if args.train:
-        som_a.train(a_xs_train)
-        som_v.train(v_xs_train)
+        som_a.train(a_xs_train[:300], input_classes=a_ys_train[:300], test_vects=a_xs_test[:300], test_classes=a_ys_test[:300])
+        som_v.train(v_xs_train[:300], input_classes=v_ys_train[:300], test_vects=v_xs_test[:300], test_classes=v_ys_test[:300])
     else:
         som_a.restore_trained()
         som_v.restore_trained()
