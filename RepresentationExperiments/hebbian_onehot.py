@@ -29,8 +29,8 @@ if __name__ == '__main__':
         v_dim = len(v_xs[0])
         som_a = SOM(5, 5, a_dim, checkpoint_dir=soma_path, n_iterations=100, batch_size=4)
         som_v = SOM(5, 5, v_dim, checkpoint_dir=somv_path, n_iterations=100, batch_size=4)
-        som_a.train(a_xs)
-        som_v.train(v_xs)
+        som_a.train(a_xs, input_classes=v_ys)
+        som_v.train(v_xs, input_classes=v_xs)
         som_a.memorize_examples_by_class(a_xs, a_ys)
         som_v.memorize_examples_by_class(v_xs, v_ys)
         hebbian_model = HebbianModel(som_a, som_v, a_dim=a_dim,

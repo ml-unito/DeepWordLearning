@@ -37,8 +37,9 @@ class SOM(object):
     _trained = False
 
 
-    def __init__(self, m, n, dim, checkpoint_dir=None, n_iterations=50, alpha=None, sigma=None,
-                 tau=0.5, threshold=0.6, batch_size=500):
+    def __init__(self, m, n, dim, n_iterations=50, alpha=None, sigma=None,
+                 tau=0.5, threshold=0.6, batch_size=500, num_classes=10,
+                 checkpoint_dir = None, data='audio'):
         """
         Initializes all necessary components of the TensorFlow
         Graph.
@@ -58,14 +59,14 @@ class SOM(object):
         self._m = m
         self._n = n
         if alpha is None:
-            alpha = 0.3
+            self.alpha = 0.3
         else:
-            alpha = float(alpha)
+            self.alpha = float(alpha)
 
         if sigma is None:
-            sigma = max(m, n) / 2.0
+            self.sigma = max(m, n) / 2.0
         else:
-            sigma = float(sigma)
+            self.sigma = float(sigma)
 
         self.tau = tau
         self.threshold = threshold
@@ -74,8 +75,13 @@ class SOM(object):
 
         self._n_iterations = abs(int(n_iterations))
 
+        self.logs_path = Constants.DATA_FOLDER + '/tblogs/' + self.get_experiment_name(data)
+
+        if not os.path.exists(self.logs_path):
+            os.makedirs(self.logs_path)
+
         if checkpoint_dir is None:
-          self.checkpoint_dir = './model100ClassesVisivo/'
+          self.checkpoint_dir = Constants.DATA_FOLDER + '/saved_models/' + self.get_experiment_name(data)
         else:
           self.checkpoint_dir = checkpoint_dir
 
@@ -90,7 +96,7 @@ class SOM(object):
             #Randomly initialized weightage vectors for all neurons,
             #stored together as a matrix Variable of size [m*n, dim]
             self._weightage_vects = tf.Variable(tf.random_normal(
-                [m*n, dim]))
+                [m*n, dim], mean=0.5, stddev=0.2))
 
             #Matrix of size [m*n, 2] for SOM grid locations
             #of neurons
@@ -103,15 +109,32 @@ class SOM(object):
 
             #The training vectors
             self._vect_input = tf.placeholder("float", [None, dim])
+            #Class vectors, useful for computing class compactness as we train
+            self._class_input = tf.placeholder("int32", [None])
+            #Test vectors and test classes
+            self._vect_test = tf.placeholder("float", [None, dim])
+            self._class_test = tf.placeholder("int32", [None])
             #Iteration number
             self._iter_input = tf.placeholder("float")
+            #Summaries placeholder
+            self._train_compactness = tf.placeholder("float")
+            self._test_compactness = tf.placeholder("float")
+
+            ##SUMMARIES
+            train_mean, train_std = tf.nn.moments(self._train_compactness, axes=[0])
+            test_mean, test_std = tf.nn.moments(self._test_compactness, axes=[0])
+            tf.summary.scalar("Train Mean Compactness", train_mean)
+            tf.summary.scalar("Test Mean Compactness", test_mean)
+            tf.summary.scalar("Train Compactness Variance", train_std)
+            tf.summary.scalar("Test Compactness Variance", test_std)
+            self.summaries = tf.summary.merge_all()
 
             ##CONSTRUCT TRAINING OP PIECE BY PIECE
             #Only the final, 'root' training op needs to be assigned as
             #an attribute to self, since all the rest will be executed
             #automatically during training
 
-            bmu_indexes = self._get_bmu()
+            bmu_indexes = self._get_bmu(self._vect_input)
 
             #This will extract the location of the BMU based on the BMU's
             #index. This has dimensionality [batch_size, 2] where 2 is (i, j),
@@ -121,8 +144,8 @@ class SOM(object):
             #To compute the alpha and sigma values based on iteration
             #number
             learning_rate = 1.0 - tf.div(self._iter_input, tf.cast(self._n_iterations, "float"))
-            _alpha_op = alpha * learning_rate
-            _sigma_op = sigma * learning_rate
+            _alpha_op = self.alpha * learning_rate
+            _sigma_op = self.sigma * learning_rate
 
             #Construct the op that will generate a vector with learning
             #rates for all neurons, based on iteration number and location
@@ -170,12 +193,12 @@ class SOM(object):
         squared_distances = tf.reduce_sum((self._location_vects - tf.expand_dims(bmu_loc, 1)) ** 2, 2)
         return squared_distances
 
-    def _get_bmu(self):
+    def _get_bmu(self, vects):
         """
-        Returns the BMU for each example in self._vect_input. The return value's dimensionality
-        is therefore [batch_size]
+        Returns the BMU for each example in vect. The return value's dimensionality
+        is therefore vect.shape[0]
         """
-        squared_differences = (self._weightage_vects - tf.expand_dims(self._vect_input, 1)) ** 2
+        squared_differences = (self._weightage_vects - tf.expand_dims(vects, 1)) ** 2
         squared_distances = tf.reduce_sum(squared_differences, 2)
         bmu_index = tf.argmin(squared_distances, 1)
         return bmu_index
@@ -191,7 +214,7 @@ class SOM(object):
             for j in range(n):
                 yield np.array([i, j])
 
-    def train(self, input_vects):
+    def train(self, input_vects, input_classes=None, test_vects=None, test_classes=None):
         """
         Trains the SOM.
         'input_vects' should be an iterable of 1-D NumPy arrays with
@@ -200,42 +223,65 @@ class SOM(object):
         taken as starting conditions for training.
         """
         with self._sess:
-          #Training iterations
-          for iter_no in range(self._n_iterations):
-              if iter_no % 10 == 0:
-                  print('Iteration {}'.format(iter_no))
-                  delta = self._sess.run(self.weightage_delta, feed_dict={self._vect_input: input_vects[0:1],
-                             self._iter_input: iter_no})
-                  assert not np.any(np.isnan(delta))
-              count = 0
-              num_batches = int(np.ceil(len(input_vects) / self.batch_size))
-              for i in range(num_batches):
-                  count = count + 1
-                  start = self.batch_size * i
-                  end = self.batch_size * (i+1)
-                  _, a = self._sess.run([self._training_op, self.weightage_delta],
-                                 feed_dict={self._vect_input: input_vects[start:end],
-                                            self._iter_input: iter_no})
+            saver = tf.train.Saver()
+            summary_writer = tf.summary.FileWriter(self.logs_path)
+            for iter_no in range(self._n_iterations):
+                if iter_no % 10 == 0:
+                    print('Iteration {}'.format(iter_no))
+                    # delta sanity check
+                    delta = self._sess.run(self.weightage_delta, feed_dict={self._vect_input: input_vects[0:1],
+                            self._iter_input: iter_no})
+                    assert not np.any(np.isnan(delta))
+                count = 0
+                num_batches = int(np.ceil(len(input_vects) / self.batch_size))
+                for i in range(num_batches):
+                    count = count + 1
+                    start = self.batch_size * i
+                    end = self.batch_size * (i+1)
+                    _, a = self._sess.run([self._training_op, self.weightage_delta],
+                                     feed_dict={self._vect_input: input_vects[start:end],
+                                                self._iter_input: iter_no})
 
-          #Store a centroid grid for easy retrieval later on
-          centroid_grid = [[] for i in range(self._m)]
-          self._weightages = list(self._sess.run(self._weightage_vects))
-          #print(self._weightages)
-          self._locations = list(self._sess.run(self._location_vects))
-          for i, loc in enumerate(self._locations):
-              centroid_grid[loc[0]].append(self._weightages[i])
-          self._centroid_grid = centroid_grid
+                #Store a centroid grid for easy retrieval later on
+                centroid_grid = [[] for i in range(self._m)]
+                self._weightages = list(self._sess.run(self._weightage_vects))
+                self._locations = list(self._sess.run(self._location_vects))
 
-          self._trained = True
+                #Run summaries
+                if input_classes is not None:
+                    train_comp = self.class_compactness(input_vects, input_classes)
+                else:
+                    train_comp = [0]
+                if test_classes is not None:
+                    test_comp = self.class_compactness(test_vects, test_classes)
+                else:
+                    test_comp = [0]
+                summary = self._sess.run(self.summaries, feed_dict={self._train_compactness: train_comp,
+                                             self._test_compactness: test_comp})
+                summary_writer.add_summary(summary, global_step=iter_no)
 
-          # Store the trained model
-          saver = tf.train.Saver()
-          if not os.path.exists(self.checkpoint_dir):
-              os.makedirs(self.checkpoint_dir)
-          saver.save(self._sess,
-                     os.path.join(self.checkpoint_dir,
-                                 'model.ckpt'),
-                     1)
+                #Save model periodically
+                if iter_no % 10 == 0:
+                    if not os.path.exists(self.checkpoint_dir):
+                        os.makedirs(self.checkpoint_dir)
+                    saver.save(self._sess,
+                               os.path.join(self.checkpoint_dir,
+                                           'model_'+str(iter_no)+'epoch.ckpt'),
+                               1)
+
+            for i, loc in enumerate(self._locations):
+                centroid_grid[loc[0]].append(self._weightages[i])
+            self._centroid_grid = centroid_grid
+
+            self._trained = True
+
+            # Save the final model
+            if not os.path.exists(self.checkpoint_dir):
+                os.makedirs(self.checkpoint_dir)
+            saver.save(self._sess,
+                       os.path.join(self.checkpoint_dir,
+                                   'model.ckpt'),
+                       1)
 
 
     def restore_trained(self):
@@ -261,6 +307,10 @@ class SOM(object):
             print('NO CHECKPOINT FOUND')
             return False
 
+    def get_experiment_name(self, data):
+        return data + '_tau' + str(self.tau) + '_thrsh' \
+               + str(self.threshold) + '_sigma' + str(self.sigma) + '_batch' + str(self.batch_size) \
+               + '_alpha' + str(self.alpha)
 
     def get_centroids(self):
         """
@@ -363,6 +413,29 @@ class SOM(object):
             plt.text(m[1], m[0], color_names[y[i]], ha='center', va='center',
                      bbox=dict(facecolor=color_names[y[i]], alpha=0.5, lw=0))
         plt.savefig(os.path.join(Constants.PLOT_FOLDER, plot_name))
+
+    ## TODO: la inter_class_distance può essere calcolata una sola volta per dataset
+    def class_compactness(self, xs, ys):
+        class_belonging_dict = {y: [] for y in list(set(ys))}
+        for i, y in enumerate(ys):
+            class_belonging_dict[y].append(i)
+        intra_class_distance = [0 for y in list(set(ys))]
+        for y in set(ys):
+            for index, j in enumerate(class_belonging_dict[y]):
+                x1 = xs[j]
+                for k in class_belonging_dict[y][index+1:]:
+                    x2 = xs[k]
+                    _, pos_x1 = self.get_BMU(x1)
+                    _, pos_x2 = self.get_BMU(x2)
+                    intra_class_distance[y] += np.linalg.norm(pos_x1-pos_x2)
+        inter_class_distance = 0
+        for i, x1 in enumerate(xs):
+            for j, x2 in enumerate(xs[i+1:]):
+                inter_class_distance += np.linalg.norm(x1-x2)
+        inter_class_distance /= len(xs)
+        class_compactness = intra_class_distance/inter_class_distance
+        return class_compactness
+
 
 if __name__ == '__main__':
     pass

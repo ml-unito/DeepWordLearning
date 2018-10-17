@@ -11,16 +11,6 @@ from models.som.SOM import SOM
 from utils.utils import from_csv_with_filenames, from_csv_visual_10classes, from_csv_visual_100classes
 
 
-parser = argparse.ArgumentParser(description='Analyze a SOM and get some measures.')
-parser.add_argument('--csv-path', metavar='csv_path', type=str, required=True, help='The csv file with the test data.')
-parser.add_argument('--model-path', metavar='model_path', type=str, required=True, help='The folder containing the tf checkpoint file.')
-parser.add_argument('--classes100', action='store_true',
-                    help='Specify whether you are analyzing \
-                    a file with representations from 100 classes, as the loading functions are different.',
-                    default=False)
-parser.add_argument('--is-audio', action='store_true', default=False,
-                    help='Specify whether the csv contains audio representations, as the loading functions are different.')
-args = parser.parse_args()
 
 def class_compactness(som, xs, ys):
     class_belonging_dict = {y: [] for y in list(set(ys))}
@@ -44,6 +34,17 @@ def class_compactness(som, xs, ys):
     return class_compactness
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Analyze a SOM and get some measures.')
+    parser.add_argument('--csv-path', metavar='csv_path', type=str, required=True, help='The csv file with the test data.')
+    parser.add_argument('--model-path', metavar='model_path', type=str, required=True, help='The folder containing the tf checkpoint file.')
+    parser.add_argument('--classes100', action='store_true',
+                        help='Specify whether you are analyzing \
+                        a file with representations from 100 classes, as the loading functions are different.',
+                        default=False)
+    parser.add_argument('--is-audio', action='store_true', default=False,
+                        help='Specify whether the csv contains audio representations, as the loading functions are different.')
+    args = parser.parse_args()
+
     if not args.classes100:
         num_classes = 10
         if not args.is_audio:
