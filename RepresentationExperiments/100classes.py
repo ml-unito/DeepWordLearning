@@ -74,18 +74,35 @@ def create_folds(a_xs, v_xs, a_ys, v_ys, n_folds=1, n_classes=100):
             del v_ys_[v_idx]
     return a_xs_fold, v_xs_fold, a_ys_fold, v_ys_fold
 
+def transform_data(xs):
+    '''
+    Makes the column-wise mean of the input matrix xs 0; renders the variance 1;
+    uses the eigenvector matrix $U^T$ to center the data around the direction
+    of maximum variation in the data matrix xs.
+    '''
+    xs -= np.mean(xs, axis=0)
+    xs /= np.std(xs, axis=0)
+    #covariance_matrix = np.cov(xs, rowvar=False)
+    #eig_vals, eig_vecs = np.linalg.eigh(covariance_matrix)
+    #idx = np.argsort(eig_vals)[::-1]
+    #eig_vecs = eig_vecs[idx]
+    #return np.dot(eig_vecs.T, xs.T).T
+    return xs
+
 
 if __name__ == '__main__':
     a_xs, a_ys, _ = from_csv_with_filenames(audio_data_path)
     v_xs, v_ys = from_csv_visual_100classes(visual_data_path)
     # scale data to 0-1 range
-    a_xs = MinMaxScaler().fit_transform(a_xs)
-    v_xs = MinMaxScaler().fit_transform(v_xs)
+    #a_xs = MinMaxScaler().fit_transform(a_xs)
+    #v_xs = MinMaxScaler().fit_transform(v_xs)
+    a_xs = transform_data(a_xs)
+    v_xs = transform_data(v_xs)
     a_dim = len(a_xs[0])
     v_dim = len(v_xs[0])
-    som_a = SOM(20, 30, a_dim, checkpoint_dir=soma_path, n_iterations=2000,
+    som_a = SOM(70, 85, a_dim, checkpoint_dir=soma_path, n_iterations=300000,
                  tau=0.1, threshold=0.6, batch_size=300, data='audio')
-    som_v = SOM(20, 30, v_dim, checkpoint_dir=somv_path, n_iterations=200,
+    som_v = SOM(70, 85, v_dim, checkpoint_dir=somv_path, n_iterations=300000,
                  tau=0.1, threshold=0.6, batch_size=300, data='visual')
 
     v_ys = np.array(v_ys)
@@ -98,8 +115,8 @@ if __name__ == '__main__':
                                                                     random_state=random_seed)
 
     if args.train:
-        som_a.train(a_xs_train[:300], input_classes=a_ys_train[:300], test_vects=a_xs_test[:300], test_classes=a_ys_test[:300])
-        som_v.train(v_xs_train[:300], input_classes=v_ys_train[:300], test_vects=v_xs_test[:300], test_classes=v_ys_test[:300])
+        som_a.train(a_xs_train, input_classes=a_ys_train, test_vects=a_xs_test, test_classes=a_ys_test)
+        som_v.train(v_xs_train, input_classes=v_ys_train, test_vects=v_xs_test, test_classes=v_ys_test)
     else:
         som_a.restore_trained()
         som_v.restore_trained()

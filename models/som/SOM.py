@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 from utils.constants import Constants
 from matplotlib import colors
 from scipy.stats import f as fisher_f
+from scipy.stats import norm
 
 
 class SOM(object):
@@ -178,7 +179,11 @@ class SOM(object):
                                           new_weightages_op)
 
             ##INITIALIZE SESSION
-            self._sess = tf.Session()
+            #uncomment this to run on cpu
+            config = tf.ConfigProto(
+                device_count = {'GPU': 0}
+            )
+            self._sess = tf.Session(config=config)
 
 
             ##INITIALIZE VARIABLES
@@ -454,36 +459,48 @@ class SOM(object):
         class_compactness = intra_class_distance/inter_class_distance
         return class_compactness
 
-    def population_based_convergence(self, xs, alpha=0.05):
+    def population_based_convergence(self, xs, alpha=0.10):
         '''
         Population based convergence is a feature-by-feature convergence criterion.
         This implementation is based on "A Convergence Criterion for Self-Organizing
         Maps" by B. Ott, 2012.
+
+        Name mapping from variables to paper:
+        data_feature_mean: $x^1$
+        neuron_feature_mean: $x^2$
+        data_feature_var: $\sigma^2_1$
+        neuron_feature_var: $\sigma^2_2$
+        num_samples: $n_1$
+        num_neurons: $n_2$
         '''
         weights = self._sess.run(self._weightage_vects)
-        data_feature_mean = np.mean(xs, axis=0) # x1 in the paper, eq. 17
-        neuron_feature_mean = np.mean(weights, axis=0) # x2 in the paper, eq.17
+        data_feature_mean = np.mean(xs, axis=0)
+        neuron_feature_mean = np.mean(weights, axis=0)
         data_feature_var = np.var(xs, axis=0)
         neuron_feature_var = np.var(weights, axis=0)
-        z = 0.2 # dunno atm
+        num_samples = len(xs)
+        num_neurons = (self._m * self._n)
 
-        # mean convergence
+        z = norm.ppf(q=1-(alpha/2))
         lhs = (data_feature_mean - neuron_feature_mean) \
-              - z * np.sqrt(data_feature_var / len(data_feature_mean) + neuron_feature_var / len(neuron_feature_mean))
-
+              - z * np.sqrt(data_feature_var / num_samples + neuron_feature_var / num_neurons) # eq. 17 lhs
         rhs = (data_feature_mean - neuron_feature_mean) \
-              - z * np.sqrt(data_feature_var / len(data_feature_mean) + neuron_feature_var / len(neuron_feature_mean))
+              + z * np.sqrt(data_feature_var / num_samples + neuron_feature_var / num_neurons) # eq. 17 rhs
 
         mean_stat = np.multiply(lhs, rhs)
-        mean_pos_converged = np.where(mean_stat[mean_stat<0])
+        mean_pos_converged = np.where(mean_stat[mean_stat<0])[0]
+        #print(mean_pos_converged)
 
         # std convergence
-        fisher_f_stat = fisher_f(len(data_feature_var), len(neuron_feature_var)).pdf(alpha)
-        lhs = (data_feature_var / neuron_feature_var) * (1 / fisher_f_stat)
-        rhs = (data_feature_var / neuron_feature_var) * fisher_f_stat
+        fisher_f_stat = fisher_f.ppf(q=1-(alpha/2), dfn=num_samples-1, dfd=num_neurons-1)
 
-        var_stat = np.multiply(lhs, rhs)
-        var_pos_converged = np.where(var_stat[var_stat<0])
+        lhs = np.divide(data_feature_var, neuron_feature_var) * (1 / fisher_f_stat)
+        rhs = np.divide(data_feature_var, neuron_feature_var) * fisher_f_stat
+
+        print(rhs-lhs-1)
+        var_stat = rhs-lhs-1
+        var_pos_converged = np.where(var_stat[var_stat<0])[0]
+        print(var_pos_converged)
 
         return len(np.intersect1d(mean_pos_converged, var_pos_converged, assume_unique=True))
 
