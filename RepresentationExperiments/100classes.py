@@ -114,15 +114,15 @@ if __name__ == '__main__':
     a_ys = np.array(a_ys)
 
     if SUBSAMPLE:
-        a_xs, _, a_ys, _ = train_test_split(a_xs, a_ys, test_size=0.7, stratify=a_ys)
-        v_xs, _, v_ys, _ = train_test_split(v_xs, v_ys, test_size=0.7, stratify=v_ys)
+        a_xs, _, a_ys, _ = train_test_split(a_xs, a_ys, test_size=0.8, stratify=a_ys)
+        v_xs, _, v_ys, _ = train_test_split(v_xs, v_ys, test_size=0.8, stratify=v_ys)
         print('Audio: training on {} examples.'.format(len(a_xs)))
         print('Image: training on {} examples.'.format(len(v_xs)))
 
 
-    a_xs_train, a_xs_test, a_ys_train, a_ys_test = train_test_split(a_xs, a_ys, test_size=0.2,
+    a_xs_train, a_xs_test, a_ys_train, a_ys_test = train_test_split(a_xs, a_ys, test_size=0.2, stratify=a_ys,
                                                                     random_state=random_seed)
-    v_xs_train, v_xs_test, v_ys_train, v_ys_test = train_test_split(v_xs, v_ys, test_size=0.2,
+    v_xs_train, v_xs_test, v_ys_train, v_ys_test = train_test_split(v_xs, v_ys, test_size=0.2, stratify=v_ys,
                                                                     random_state=random_seed)
 
 

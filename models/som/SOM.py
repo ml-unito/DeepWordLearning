@@ -443,6 +443,7 @@ class SOM(object):
         for i, y in enumerate(ys):
             class_belonging_dict[y].append(i)
         intra_class_distance = [0 for y in list(set(ys))]
+        print(intra_class_distance)
         for y in set(ys):
             for index, j in enumerate(class_belonging_dict[y]):
                 x1 = xs[j]
