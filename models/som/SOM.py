@@ -289,7 +289,7 @@ class SOM(object):
                         os.makedirs(self.checkpoint_dir)
                     saver.save(self._sess,
                                os.path.join(self.checkpoint_dir,
-                                           + os.sep + 'model'+str(iter_no)+'epoch.ckpt'),
+                                            'model'+str(iter_no)+'epoch.ckpt'),
                                1)
 
             for i, loc in enumerate(self._locations):
