@@ -83,7 +83,7 @@ class SOM(object):
             os.makedirs(self.logs_path)
 
         if checkpoint_dir is None:
-          self.checkpoint_dir = Constants.DATA_FOLDER + '/saved_models/' + self.get_experiment_name(data)
+          self.checkpoint_dir = Constants.DATA_FOLDER + '/saved_models/'
         else:
           self.checkpoint_dir = checkpoint_dir
 
@@ -284,12 +284,12 @@ class SOM(object):
                 summary_writer.add_summary(summary, global_step=iter_no)
 
                 #Save model periodically
-                if iter_no % 10 == 0:
+                if iter_no % 5 == 0:
                     if not os.path.exists(self.checkpoint_dir):
                         os.makedirs(self.checkpoint_dir)
                     saver.save(self._sess,
                                os.path.join(self.checkpoint_dir,
-                                           'model_'+str(iter_no)+'epoch.ckpt'),
+                                           + os.sep + 'model'+str(iter_no)+'epoch.ckpt'),
                                1)
 
             for i, loc in enumerate(self._locations):
