@@ -89,6 +89,8 @@ def transform_data(xs):
     #return np.dot(eig_vecs.T, xs.T).T
     return xs
 
+SUBSAMPLE = True
+
 
 if __name__ == '__main__':
     a_xs, a_ys, _ = from_csv_with_filenames(audio_data_path)
@@ -100,19 +102,29 @@ if __name__ == '__main__':
     v_xs = transform_data(v_xs)
     a_dim = len(a_xs[0])
     v_dim = len(v_xs[0])
-    som_a = SOM(70, 85, a_dim, checkpoint_dir=soma_path, n_iterations=300000,
-                 tau=0.1, threshold=0.6, batch_size=300, data='audio')
-    som_v = SOM(70, 85, v_dim, checkpoint_dir=somv_path, n_iterations=300000,
-                 tau=0.1, threshold=0.6, batch_size=300, data='visual')
+    som_a = SOM(70, 85, a_dim, checkpoint_dir=soma_path, n_iterations=10000,
+                 tau=0.1, threshold=0.6, batch_size=100, data='audio')
+    som_v = SOM(70, 85, v_dim, checkpoint_dir=somv_path, n_iterations=10000,
+                 tau=0.1, threshold=0.6, batch_size=100, data='visual')
 
     v_ys = np.array(v_ys)
     v_xs = np.array(v_xs)
     a_xs = np.array(a_xs)
     a_ys = np.array(a_ys)
+
+    if SUBSAMPLE:
+        a_xs, _, a_ys, _ = train_test_split(a_xs, a_ys, test_size=0.7)
+        v_xs, _, v_ys, _ = train_test_split(v_xs, v_ys, test_size=0.7)
+        print('Audio: training on {} examples.'.format(len(a_xs)))
+        print('Image: training on {} examples.'.format(len(v_xs)))
+
+
     a_xs_train, a_xs_test, a_ys_train, a_ys_test = train_test_split(a_xs, a_ys, test_size=0.2,
                                                                     random_state=random_seed)
     v_xs_train, v_xs_test, v_ys_train, v_ys_test = train_test_split(v_xs, v_ys, test_size=0.2,
                                                                     random_state=random_seed)
+
+
 
     if args.train:
         som_a.train(a_xs_train, input_classes=a_ys_train, test_vects=a_xs_test, test_classes=a_ys_test)

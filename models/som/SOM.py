@@ -260,18 +260,18 @@ class SOM(object):
 
                 #Run summaries
                 if input_classes is not None:
-                    #train_comp = self.class_compactness(input_vects, input_classes)
-                    train_comp = [0]
+                    train_comp = self.class_compactness(input_vects, input_classes)
+                    #train_comp = [0]
                     train_conv = self.population_based_convergence(input_vects)
-                    print(train_conv)
+                    #print(train_conv)
                 else:
                     train_comp = [0]
                     train_conv = [0]
                 if test_classes is not None:
-                    #test_comp = self.class_compactness(test_vects, test_classes)
-                    test_comp = [0]
+                    test_comp = self.class_compactness(test_vects, test_classes)
+                    #test_comp = [0]
                     test_conv = self.population_based_convergence(test_vects)
-                    print(test_conv)
+                    #print(test_conv)
                 else:
                     test_comp = [0]
                     test_conv = [0]
