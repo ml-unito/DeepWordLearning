@@ -26,6 +26,7 @@ visual_data_path = os.path.join(Constants.DATA_FOLDER,
 
 parser = argparse.ArgumentParser(description='Train a Hebbian model.')
 parser.add_argument('--lr', metavar='lr', type=float, default=100, help='The model learning rate')
+parser.add_argument('--sigma', metavar='sigma', type=float, default=100, help='The model neighborhood value')
 parser.add_argument('--seed', metavar='seed', type=int, default=42, help='Random generator seed')
 parser.add_argument('--algo', metavar='algo', type=str, default='sorted',
                     help='Algorithm choice')
@@ -113,8 +114,8 @@ if __name__ == '__main__':
     a_ys = np.array(a_ys)
 
     if SUBSAMPLE:
-        a_xs, _, a_ys, _ = train_test_split(a_xs, a_ys, test_size=0.7)
-        v_xs, _, v_ys, _ = train_test_split(v_xs, v_ys, test_size=0.7)
+        a_xs, _, a_ys, _ = train_test_split(a_xs, a_ys, test_size=0.7, stratify=a_ys)
+        v_xs, _, v_ys, _ = train_test_split(v_xs, v_ys, test_size=0.7, stratify=v_ys)
         print('Audio: training on {} examples.'.format(len(a_xs)))
         print('Image: training on {} examples.'.format(len(v_xs)))
 
