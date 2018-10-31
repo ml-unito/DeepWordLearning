@@ -27,6 +27,7 @@ visual_data_path = os.path.join(Constants.DATA_FOLDER,
 parser = argparse.ArgumentParser(description='Train a Hebbian model.')
 parser.add_argument('--lr', metavar='lr', type=float, default=100, help='The model learning rate')
 parser.add_argument('--sigma', metavar='sigma', type=float, default=100, help='The model neighborhood value')
+parser.add_argument('--alpha', metavar='alpha', type=float, default=100, help='The SOM initial learning rate')
 parser.add_argument('--seed', metavar='seed', type=int, default=42, help='Random generator seed')
 parser.add_argument('--algo', metavar='algo', type=str, default='sorted',
                     help='Algorithm choice')
@@ -83,12 +84,12 @@ def transform_data(xs):
     '''
     xs -= np.mean(xs, axis=0)
     xs /= np.std(xs, axis=0)
-    #covariance_matrix = np.cov(xs, rowvar=False)
-    #eig_vals, eig_vecs = np.linalg.eigh(covariance_matrix)
-    #idx = np.argsort(eig_vals)[::-1]
-    #eig_vecs = eig_vecs[idx]
-    #return np.dot(eig_vecs.T, xs.T).T
-    return xs
+    covariance_matrix = np.cov(xs, rowvar=False)
+    eig_vals, eig_vecs = np.linalg.eigh(covariance_matrix)
+    idx = np.argsort(eig_vals)[::-1]
+    eig_vecs = eig_vecs[idx]
+    return np.dot(eig_vecs.T, xs.T).T
+    #return xs
 
 SUBSAMPLE = True
 
@@ -103,9 +104,9 @@ if __name__ == '__main__':
     v_xs = transform_data(v_xs)
     a_dim = len(a_xs[0])
     v_dim = len(v_xs[0])
-    som_a = SOM(70, 85, a_dim, n_iterations=10000,
+    som_a = SOM(70, 85, a_dim, n_iterations=1000, alpha=args.alpha,
                  tau=0.1, threshold=0.6, batch_size=100, data='audio', sigma=args.sigma)
-    som_v = SOM(70, 85, v_dim, n_iterations=10000,
+    som_v = SOM(70, 85, v_dim, n_iterations=1000, alpha=args.alpha,
                  tau=0.1, threshold=0.6, batch_size=100, data='visual', sigma=args.sigma)
 
     v_ys = np.array(v_ys)

@@ -27,6 +27,8 @@ from utils.constants import Constants
 from matplotlib import colors
 from scipy.stats import f as fisher_f
 from scipy.stats import norm
+from profilehooks import profile
+
 
 
 class SOM(object):
@@ -98,7 +100,7 @@ class SOM(object):
             #Randomly initialized weightage vectors for all neurons,
             #stored together as a matrix Variable of size [m*n, dim]
             self._weightage_vects = tf.Variable(tf.random_normal(
-                [m*n, dim], mean=0.5, stddev=0.2))
+                [m*n, dim], mean=0, stddev=1))
 
             #Matrix of size [m*n, 2] for SOM grid locations
             #of neurons
@@ -123,6 +125,11 @@ class SOM(object):
             self._test_compactness = tf.placeholder("float")
             self._train_population_convergence = tf.placeholder("float")
             self._test_population_convergence = tf.placeholder("float")
+            self._train_mean_convergence = tf.placeholder("float")
+            self._test_mean_convergence = tf.placeholder("float")
+            self._train_var_convergence = tf.placeholder("float")
+            self._test_var_convergence = tf.placeholder("float")
+            self._avg_delta = tf.placeholder("float")
 
             ##SUMMARIES
             train_mean, train_std = tf.nn.moments(self._train_compactness, axes=[0])
@@ -133,6 +140,13 @@ class SOM(object):
             tf.summary.scalar("Test Compactness Variance", test_std)
             tf.summary.scalar("Train Population Convergence", self._train_population_convergence)
             tf.summary.scalar("Test Population Convergence", self._test_population_convergence)
+            tf.summary.scalar("Train Mean Convergence", self._train_mean_convergence)
+            tf.summary.scalar("Test Mean Convergence", self._test_mean_convergence)
+            tf.summary.scalar("Train Var Convergence", self._train_var_convergence)
+            tf.summary.scalar("Test Var Convergence", self._test_var_convergence)
+            tf.summary.scalar("Average Delta", self._avg_delta)
+
+            self.inter_class_distance = None # will be set when computing the class compactness for the first time
 
             self.summaries = tf.summary.merge_all()
 
@@ -237,13 +251,14 @@ class SOM(object):
             saver = tf.train.Saver()
             summary_writer = tf.summary.FileWriter(self.logs_path)
             for iter_no in range(self._n_iterations):
-                if iter_no % 10 == 0:
+                if iter_no % 5 == 0:
                     print('Iteration {}'.format(iter_no))
                     # delta sanity check
                     delta = self._sess.run(self.weightage_delta, feed_dict={self._vect_input: input_vects[0:1],
                             self._iter_input: iter_no})
                     assert not np.any(np.isnan(delta))
                 count = 0
+                avg_delta = []
                 num_batches = int(np.ceil(len(input_vects) / self.batch_size))
                 for i in range(num_batches):
                     count = count + 1
@@ -252,6 +267,11 @@ class SOM(object):
                     _, a = self._sess.run([self._training_op, self.weightage_delta],
                                      feed_dict={self._vect_input: input_vects[start:end],
                                                 self._iter_input: iter_no})
+                    avg_delta.append(np.mean(a))
+                    check_arr = a < 1e-28
+                    if np.all(check_arr):
+                        print('Warning: training seems to have converged - deltas extremely low.')
+                avg_delta = np.mean(avg_delta)
 
                 #Store a centroid grid for easy retrieval later on
                 centroid_grid = [[] for i in range(self._m)]
@@ -260,17 +280,19 @@ class SOM(object):
 
                 #Run summaries
                 if input_classes is not None:
-                    train_comp = self.class_compactness(input_vects, input_classes)
-                    #train_comp = [0]
-                    train_conv = self.population_based_convergence(input_vects)
+                    #train_comp = self.class_compactness(input_vects, input_classes)
+                    train_comp = [0]
+                    train_mean_conv, train_var_conv, train_conv = self.population_based_convergence(input_vects)
+                    print('train: mean {} var {} tot {}'.format(train_mean_conv, train_var_conv, train_conv))
                     #print(train_conv)
                 else:
                     train_comp = [0]
                     train_conv = [0]
                 if test_classes is not None:
-                    test_comp = self.class_compactness(test_vects, test_classes)
-                    #test_comp = [0]
-                    test_conv = self.population_based_convergence(test_vects)
+                    #test_comp = self.class_compactness(test_vects, test_classes)
+                    test_comp = [0]
+                    test_mean_conv, test_var_conv, test_conv = self.population_based_convergence(test_vects)
+                    print('test: mean {} var {} tot {}'.format(test_mean_conv, test_var_conv, test_conv))
                     #print(test_conv)
                 else:
                     test_comp = [0]
@@ -279,7 +301,12 @@ class SOM(object):
                                          feed_dict={self._train_compactness: train_comp,
                                                     self._test_compactness: test_comp,
                                                     self._train_population_convergence: train_conv,
-                                                    self._test_population_convergence: test_conv
+                                                    self._test_population_convergence: test_conv,
+                                                    self._train_mean_convergence: train_mean_conv,
+                                                    self._test_mean_convergence: test_mean_conv,
+                                                    self._train_var_convergence: train_var_conv,
+                                                    self._test_var_convergence: test_var_conv,
+                                                    self._avg_delta: avg_delta
                                                     })
                 summary_writer.add_summary(summary, global_step=iter_no)
 
@@ -289,9 +316,7 @@ class SOM(object):
                         os.makedirs(self.checkpoint_dir)
                     saver.save(self._sess,
                                os.path.join(self.checkpoint_dir,
-                                            'model'+str(iter_no)+'epoch.ckpt'),
-                               1)
-
+                                            self.get_experiment_name(self.checkpoint_dir) + '_' + str(iter_no)+ 'epoch.ckpt'))
             for i, loc in enumerate(self._locations):
                 centroid_grid[loc[0]].append(self._weightages[i])
             self._centroid_grid = centroid_grid
@@ -303,9 +328,7 @@ class SOM(object):
                 os.makedirs(self.checkpoint_dir)
             saver.save(self._sess,
                        os.path.join(self.checkpoint_dir,
-                                   'model.ckpt'),
-                       1)
-
+                                    self.get_experiment_name(self.checkpoint_dir) + '_final.ckpt'))
 
     def restore_trained(self):
         ckpt = tf.train.get_checkpoint_state(self.checkpoint_dir)
@@ -438,12 +461,12 @@ class SOM(object):
         plt.savefig(os.path.join(Constants.PLOT_FOLDER, plot_name))
 
     ## TODO: la inter_class_distance può essere calcolata una sola volta per dataset
+    @profile
     def class_compactness(self, xs, ys):
         class_belonging_dict = {y: [] for y in list(set(ys))}
         for i, y in enumerate(ys):
             class_belonging_dict[y].append(i)
         intra_class_distance = [0 for y in list(set(ys))]
-        print(intra_class_distance)
         for y in set(ys):
             for index, j in enumerate(class_belonging_dict[y]):
                 x1 = xs[j]
@@ -452,14 +475,15 @@ class SOM(object):
                     _, pos_x1 = self.get_BMU(x1)
                     _, pos_x2 = self.get_BMU(x2)
                     intra_class_distance[y] += np.linalg.norm(pos_x1-pos_x2)
-        inter_class_distance = 0
-        for i, x1 in enumerate(xs):
-            for j, x2 in enumerate(xs[i+1:]):
-                inter_class_distance += np.linalg.norm(x1-x2)
-        inter_class_distance /= len(xs)
-        class_compactness = intra_class_distance/inter_class_distance
+        if self.inter_class_distance = None:
+            for i, x1 in enumerate(xs):
+                for j, x2 in enumerate(xs[i+1:]):
+                    self.inter_class_distance += np.linalg.norm(x1-x2)
+            self.inter_class_distance /= len(xs)
+        class_compactness = intra_class_distance/self.inter_class_distance
         return class_compactness
 
+    @profile
     def population_based_convergence(self, xs, alpha=0.10):
         '''
         Population based convergence is a feature-by-feature convergence criterion.
@@ -490,7 +514,6 @@ class SOM(object):
 
         mean_stat = np.multiply(lhs, rhs)
         mean_pos_converged = np.where(mean_stat[mean_stat<0])[0]
-        #print(mean_pos_converged)
 
         # std convergence
         fisher_f_stat = fisher_f.ppf(q=1-(alpha/2), dfn=num_samples-1, dfd=num_neurons-1)
@@ -498,12 +521,17 @@ class SOM(object):
         lhs = np.divide(data_feature_var, neuron_feature_var) * (1 / fisher_f_stat)
         rhs = np.divide(data_feature_var, neuron_feature_var) * fisher_f_stat
 
-        print(rhs-lhs-1)
-        var_stat = rhs-lhs-1
-        var_pos_converged = np.where(var_stat[var_stat<0])[0]
-        print(var_pos_converged)
+        lhs = (lhs <= 1).astype(int)
+        rhs = (rhs >= 1).astype(int)
+        var_stat = np.multiply(lhs, rhs)
+        var_pos_converged = var_stat[var_stat != 0]
 
-        return len(np.intersect1d(mean_pos_converged, var_pos_converged, assume_unique=True))
+        print('Mean converged features: {}'.format(len(mean_pos_converged)))
+        print('Current ratio: {}'.format(data_feature_var / neuron_feature_var))
+        print('Average ratio: {}'.format(np.mean(data_feature_var / neuron_feature_var)))
+        print('Var converged features: {}'.format(len(var_pos_converged)))
+
+        return len(mean_pos_converged), len(var_pos_converged), len(np.intersect1d(mean_pos_converged, var_pos_converged, assume_unique=True))
 
 
 
