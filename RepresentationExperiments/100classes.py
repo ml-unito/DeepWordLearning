@@ -31,6 +31,14 @@ parser.add_argument('--alpha', metavar='alpha', type=float, default=100, help='T
 parser.add_argument('--seed', metavar='seed', type=int, default=42, help='Random generator seed')
 parser.add_argument('--algo', metavar='algo', type=str, default='sorted',
                     help='Algorithm choice')
+parser.add_argument('--aneurons1', type=int, default=50,
+                    help='Number of neurons for audio SOM, first dimension')
+parser.add_argument('--aneurons1', type=int, default=50,
+                    help='Number of neurons for audio SOM, second dimension')
+parser.add_argument('--vneurons1', type=int, default=50,
+                    help='Number of neurons for visual SOM, first dimension')
+parser.add_argument('--vneurons1', type=int, default=50,
+                    help='Number of neurons for visual SOM, second dimension')
 parser.add_argument('--source', metavar='source', type=str, default='v',
                     help='Source SOM')
 parser.add_argument('--train', action='store_true', default=False)
@@ -104,9 +112,9 @@ if __name__ == '__main__':
     v_xs = transform_data(v_xs)
     a_dim = len(a_xs[0])
     v_dim = len(v_xs[0])
-    som_a = SOM(70, 85, a_dim, n_iterations=1000, alpha=args.alpha,
+    som_a = SOM(args.aneurons1, args.aneurons2, a_dim, n_iterations=10000, alpha=args.alpha,
                  tau=0.1, threshold=0.6, batch_size=100, data='audio', sigma=args.sigma)
-    som_v = SOM(70, 85, v_dim, n_iterations=1000, alpha=args.alpha,
+    som_v = SOM(args.vneurons1, args.vneurons2, v_dim, n_iterations=10000, alpha=args.alpha,
                  tau=0.1, threshold=0.6, batch_size=100, data='visual', sigma=args.sigma)
 
     v_ys = np.array(v_ys)
