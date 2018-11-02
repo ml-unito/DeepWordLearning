@@ -33,11 +33,11 @@ parser.add_argument('--algo', metavar='algo', type=str, default='sorted',
                     help='Algorithm choice')
 parser.add_argument('--aneurons1', type=int, default=50,
                     help='Number of neurons for audio SOM, first dimension')
-parser.add_argument('--aneurons1', type=int, default=50,
+parser.add_argument('--aneurons2', type=int, default=50,
                     help='Number of neurons for audio SOM, second dimension')
 parser.add_argument('--vneurons1', type=int, default=50,
                     help='Number of neurons for visual SOM, first dimension')
-parser.add_argument('--vneurons1', type=int, default=50,
+parser.add_argument('--vneurons2', type=int, default=50,
                     help='Number of neurons for visual SOM, second dimension')
 parser.add_argument('--source', metavar='source', type=str, default='v',
                     help='Source SOM')

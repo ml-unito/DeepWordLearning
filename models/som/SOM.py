@@ -543,8 +543,8 @@ class SOM(object):
         print('Var converged features: {}'.format(len(var_pos_converged)))
 
         # return normalized values for mean, variance and total convergence
-        return len(mean_pos_converged) / len(neuron_feature_mean),
-               len(var_pos_converged) / len(neuron_feature_mean),
+        return len(mean_pos_converged) / len(neuron_feature_mean), \
+               len(var_pos_converged) / len(neuron_feature_mean), \
                len(np.intersect1d(mean_pos_converged, var_pos_converged, assume_unique=True)) / len(neuron_feature_mean)
 
 
