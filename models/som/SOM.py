@@ -85,7 +85,7 @@ class SOM(object):
             os.makedirs(self.logs_path)
 
         if checkpoint_dir is None:
-          self.checkpoint_dir = Constants.DATA_FOLDER + '/saved_models/'
+          self.checkpoint_dir = Constants.DATA_FOLDER + '/saved_models/' + data
         else:
           self.checkpoint_dir = checkpoint_dir
 
@@ -130,6 +130,8 @@ class SOM(object):
             self._train_var_convergence = tf.placeholder("float")
             self._test_var_convergence = tf.placeholder("float")
             self._avg_delta = tf.placeholder("float")
+            self._train_quant_error = tf.placeholder("float")
+            self._test_quant_error = tf.placeholder("float")
 
             ##SUMMARIES
             train_mean, train_std = tf.nn.moments(self._train_compactness, axes=[0])
@@ -145,6 +147,8 @@ class SOM(object):
             tf.summary.scalar("Train Var Convergence", self._train_var_convergence)
             tf.summary.scalar("Test Var Convergence", self._test_var_convergence)
             tf.summary.scalar("Average Delta", self._avg_delta)
+            tf.summary.scalar("Train Quantization Error", self._train_quant_error)
+            tf.summary.scalar("Test Quantization Error", self._test_quant_error)
 
             # will be set when computing the class compactness for the first time
             self.train_inter_class_distance = None
@@ -283,19 +287,21 @@ class SOM(object):
 
                 #Run summaries
                 if input_classes is not None:
-                    train_comp = self.class_compactness(input_vects, input_classes)
-                    #train_comp = [0]
+                #    train_comp = self.class_compactness(input_vects, input_classes)
+                    train_comp = [0]
                     train_mean_conv, train_var_conv, train_conv = self.population_based_convergence(input_vects)
                     print('train: mean {} var {} tot {}'.format(train_mean_conv, train_var_conv, train_conv))
+                    train_quant_error = self.quantization_error(input_vects)
                     #print(train_conv)
                 else:
                     train_comp = [0]
                     train_conv = [0]
                 if test_classes is not None:
-                    test_comp = self.class_compactness(test_vects, test_classes)
-                    #test_comp = [0]
+                    #test_comp = self.class_compactness(test_vects, test_classes)
+                    test_comp = [0]
                     test_mean_conv, test_var_conv, test_conv = self.population_based_convergence(test_vects)
                     print('test: mean {} var {} tot {}'.format(test_mean_conv, test_var_conv, test_conv))
+                    test_quant_error = self.quantization_error(test_vects)
                     #print(test_conv)
                 else:
                     test_comp = [0]
@@ -309,17 +315,20 @@ class SOM(object):
                                                     self._test_mean_convergence: test_mean_conv,
                                                     self._train_var_convergence: train_var_conv,
                                                     self._test_var_convergence: test_var_conv,
-                                                    self._avg_delta: avg_delta
+                                                    self._avg_delta: avg_delta,
+                                                    self._train_quant_error: train_quant_error,
+                                                    self._test_quant_error: test_quant_error
                                                     })
                 summary_writer.add_summary(summary, global_step=iter_no)
 
                 #Save model periodically
-                if iter_no % 5 == 0:
+                if iter_no % 20 == 0:
                     if not os.path.exists(self.checkpoint_dir):
                         os.makedirs(self.checkpoint_dir)
-                    saver.save(self._sess,
-                               os.path.join(self.checkpoint_dir,
-                                            self.get_experiment_name(self.checkpoint_dir) + '_' + str(iter_no)+ 'epoch.ckpt'))
+                    path = os.path.join(self.checkpoint_dir,
+                                 self.get_experiment_name(self.checkpoint_dir) + '_' + str(iter_no)+ 'epoch.ckpt')
+                    print('Saving in {}'.format(path))
+                    saver.save(self._sess, path)
             for i, loc in enumerate(self._locations):
                 centroid_grid[loc[0]].append(self._weightages[i])
             self._centroid_grid = centroid_grid
@@ -329,9 +338,10 @@ class SOM(object):
             # Save the final model
             if not os.path.exists(self.checkpoint_dir):
                 os.makedirs(self.checkpoint_dir)
-            saver.save(self._sess,
-                       os.path.join(self.checkpoint_dir,
-                                    self.get_experiment_name(self.checkpoint_dir) + '_final.ckpt'))
+            path = os.path.join(self.checkpoint_dir,
+                         self.get_experiment_name(self.checkpoint_dir) + '_final.ckpt')
+            print('Saving in {}'.format(path))
+            saver.save(self._sess, path)
 
     def restore_trained(self):
         ckpt = tf.train.get_checkpoint_state(self.checkpoint_dir)
@@ -357,7 +367,7 @@ class SOM(object):
             return False
 
     def get_experiment_name(self, data):
-        return data + '_tau' + str(self.tau) + '_thrsh' \
+        return self._m + 'x' + self._n + '_' + data + '_tau' + str(self.tau) + '_thrsh' \
                + str(self.threshold) + '_sigma' + str(self.sigma) + '_batch' + str(self.batch_size) \
                + '_alpha' + str(self.alpha)
 
@@ -484,6 +494,7 @@ class SOM(object):
         else:
             class_compactness = self.test_inter_class_distance
         if class_compactness == None:
+            class_compactness = 0
             for i, x1 in enumerate(xs):
                 for j, x2 in enumerate(xs[i+1:]):
                     class_compactness += np.linalg.norm(x1-x2)
@@ -540,12 +551,19 @@ class SOM(object):
         print('Mean converged features: {}'.format(len(mean_pos_converged)))
         print('Current ratio: {}'.format(data_feature_var / neuron_feature_var))
         print('Average ratio: {}'.format(np.mean(data_feature_var / neuron_feature_var)))
+        print('Variance of ratio: {}'.format(np.var(data_feature_var / neuron_feature_var)))
         print('Var converged features: {}'.format(len(var_pos_converged)))
 
         # return normalized values for mean, variance and total convergence
         return len(mean_pos_converged) / len(neuron_feature_mean), \
                len(var_pos_converged) / len(neuron_feature_mean), \
                len(np.intersect1d(mean_pos_converged, var_pos_converged, assume_unique=True)) / len(neuron_feature_mean)
+
+    @profile
+    def quantization_error(self, xs):
+        weights = self._sess.run(self._weightage_vects)
+        diff = np.sum([np.linalg.norm(weights - x) for x in xs])
+        return diff
 
 
 
