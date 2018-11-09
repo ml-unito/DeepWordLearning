@@ -28,6 +28,7 @@ from matplotlib import colors
 from scipy.stats import f as fisher_f
 from scipy.stats import norm
 from profilehooks import profile
+import time
 
 
 
@@ -291,8 +292,9 @@ class SOM(object):
                 if logging == True:
                 #Run summaries
                     if input_classes is not None:
-                        #train_comp = self.class_compactness(input_vects, input_classes)
                         train_comp = [0]
+                        if iter_no % 20 == 0:
+                            train_comp = self.class_compactness(input_vects, input_classes)
                         train_mean_conv, train_var_conv, train_conv = self.population_based_convergence(input_vects)
                         print('train: mean {} var {} tot {}'.format(train_mean_conv, train_var_conv, train_conv))
                         #train_quant_error = self.quantization_error(input_vects)
@@ -302,8 +304,9 @@ class SOM(object):
                         train_comp = [0]
                         train_conv = [0]
                     if test_classes is not None:
-                        #test_comp = self.class_compactness(test_vects, test_classes)
                         test_comp = [0]
+                        if iter_no % 20 == 0:
+                            test_comp = self.class_compactness(test_vects, test_classes, train=False)
                         test_mean_conv, test_var_conv, test_conv = self.population_based_convergence(test_vects)
                         print('test: mean {} var {} tot {}'.format(test_mean_conv, test_var_conv, test_conv))
                         #test_quant_error = self.quantization_error(test_vects)
@@ -402,7 +405,6 @@ class SOM(object):
                             key=lambda x: np.linalg.norm(vect-
                                                          self._weightages[x]))
             to_return.append(self._locations[min_index])
-
         return to_return
 
     @profile
@@ -422,7 +424,6 @@ class SOM(object):
         min_index = min([i for i in range(len(self._weightages))],
                             key=lambda x: np.linalg.norm(input_vect-
                                                          self._weightages[x]))
-
         return [min_index,self._locations[min_index]]
 
     @profile
@@ -502,45 +503,34 @@ class SOM(object):
         for i, y in enumerate(ys):
             class_belonging_dict[y].append(i)
         intra_class_distance = [0 for y in list(set(ys))]
-        bmu_positions = self.map_vects(xs)
-        bmu_positions_ = self.map_vects_mine(xs)
-        try:
-            assert np.all([b1 == b2 for b1, b2 in zip(bmu_positions, bmu_positions_)])
-        except AssertionError:
-            print(bmu_positions)
-            print(bmu_positions_)
-            #sys.exit(1)
-        #sys.exit(1)
-        #for y in set(ys):
-        #    for index, j in enumerate(class_belonging_dict[y]):
-        #        x1 = xs[j]
-        #        for k in class_belonging_dict[y][index+1:]:
-        #            x2 = xs[k]
-        #            #_, pos_x1 = self.get_BMU(x1)
-        #            #_, pos_x2 = self.get_BMU(x2)
-        #            #_, pos_x1 = self.get_BMU_mine(x1)
-        #            #_, pos_x2 = self.get_BMU_mine(x2)
-        #            pos_x1 = bmu_positions[j]
-        #            pos_x2 = bmu_positions[i]
-        #            #assert pos_x1_ == pos_x1
-        #            #assert pos_x2_ == pos_x2
-        #            intra_class_distance[y] += np.linalg.norm(pos_x1-pos_x2)
-        #if train == True:
-        #    class_compactness = self.train_inter_class_distance
-        #else:
-        #    class_compactness = self.test_inter_class_distance
-        #if class_compactness == None:
-        #    class_compactness = 0
-        #    for i, x1 in enumerate(xs):
-        #        for j, x2 in enumerate(xs[i+1:]):
-        #            class_compactness += np.linalg.norm(x1-x2)
-        #    class_compactness /= len(xs)
-        #if train == True:
-        #    class_compactness = intra_class_distance/self.train_inter_class_distance
-        #else:
-        #    class_compactness = intra_class_distance/self.test_inter_class_distance
-        class_compactness = 0
-        return class_compactness
+        bmu_positions = self.map_vects_mine(xs)
+        for y in set(ys):
+            for index, j in enumerate(class_belonging_dict[y]):
+                x1 = xs[j]
+                for k in class_belonging_dict[y][index+1:]:
+                    x2 = xs[k]
+                    pos_x1 = bmu_positions[j]
+                    pos_x2 = bmu_positions[i]
+                    intra_class_distance[y] += np.linalg.norm(pos_x1-pos_x2)
+        if train == True:
+            inter_class_distance = self.train_inter_class_distance
+        else:
+            inter_class_distance = self.test_inter_class_distance
+        if inter_class_distance == None:
+            inter_class_distance = 0
+            for i, x1 in enumerate(xs):
+                for j, x2 in enumerate(xs[i+1:]):
+                    inter_class_distance += np.linalg.norm(x1-x2)
+            inter_class_distance /= len(xs)
+            if train == True:
+                self.train_inter_class_distance = inter_class_distance
+            else:
+                self.test_inter_class_distance = inter_class_distance
+        if train == True:
+            class_comp = intra_class_distance/self.train_inter_class_distance
+        else:
+            class_comp = intra_class_distance/self.test_inter_class_distance
+        return class_comp
 
     @profile
     def population_based_convergence(self, xs, alpha=0.10):
