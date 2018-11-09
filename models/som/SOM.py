@@ -247,7 +247,8 @@ class SOM(object):
             for j in range(n):
                 yield np.array([i, j])
 
-    def train(self, input_vects, input_classes=None, test_vects=None, test_classes=None):
+    def train(self, input_vects, input_classes=None, test_vects=None, test_classes=None,
+              logging=True):
         """
         Trains the SOM.
         'input_vects' should be an iterable of 1-D NumPy arrays with
@@ -287,43 +288,44 @@ class SOM(object):
                 self._weightages = list(self._sess.run(self._weightage_vects))
                 self._locations = list(self._sess.run(self._location_vects))
 
+                if logging == True:
                 #Run summaries
-                if input_classes is not None:
-                #    train_comp = self.class_compactness(input_vects, input_classes)
-                    train_comp = [0]
-                    train_mean_conv, train_var_conv, train_conv = self.population_based_convergence(input_vects)
-                    print('train: mean {} var {} tot {}'.format(train_mean_conv, train_var_conv, train_conv))
-                    #train_quant_error = self.quantization_error(input_vects)
-                    train_quant_error = [0]
-                    #print(train_conv)
-                else:
-                    train_comp = [0]
-                    train_conv = [0]
-                if test_classes is not None:
-                    #test_comp = self.class_compactness(test_vects, test_classes)
-                    test_comp = [0]
-                    test_mean_conv, test_var_conv, test_conv = self.population_based_convergence(test_vects)
-                    print('test: mean {} var {} tot {}'.format(test_mean_conv, test_var_conv, test_conv))
-                    #test_quant_error = self.quantization_error(test_vects)
-                    test_quant_error = [0]
-                    #print(test_conv)
-                else:
-                    test_comp = [0]
-                    test_conv = [0]
-                summary = self._sess.run(self.summaries,
-                                         feed_dict={self._train_compactness: train_comp,
-                                                    self._test_compactness: test_comp,
-                                                    self._train_population_convergence: train_conv,
-                                                    self._test_population_convergence: test_conv,
-                                                    self._train_mean_convergence: train_mean_conv,
-                                                    self._test_mean_convergence: test_mean_conv,
-                                                    self._train_var_convergence: train_var_conv,
-                                                    self._test_var_convergence: test_var_conv,
-                                                    self._avg_delta: avg_delta,
-                                                    #self._train_quant_error: train_quant_error,
-                                                    #self._test_quant_error: test_quant_error
-                                                    })
-                summary_writer.add_summary(summary, global_step=iter_no)
+                    if input_classes is not None:
+                        #train_comp = self.class_compactness(input_vects, input_classes)
+                        train_comp = [0]
+                        train_mean_conv, train_var_conv, train_conv = self.population_based_convergence(input_vects)
+                        print('train: mean {} var {} tot {}'.format(train_mean_conv, train_var_conv, train_conv))
+                        #train_quant_error = self.quantization_error(input_vects)
+                        train_quant_error = [0]
+                        #print(train_conv)
+                    else:
+                        train_comp = [0]
+                        train_conv = [0]
+                    if test_classes is not None:
+                        #test_comp = self.class_compactness(test_vects, test_classes)
+                        test_comp = [0]
+                        test_mean_conv, test_var_conv, test_conv = self.population_based_convergence(test_vects)
+                        print('test: mean {} var {} tot {}'.format(test_mean_conv, test_var_conv, test_conv))
+                        #test_quant_error = self.quantization_error(test_vects)
+                        test_quant_error = [0]
+                        #print(test_conv)
+                    else:
+                        test_comp = [0]
+                        test_conv = [0]
+                    summary = self._sess.run(self.summaries,
+                                             feed_dict={self._train_compactness: train_comp,
+                                                        self._test_compactness: test_comp,
+                                                        self._train_population_convergence: train_conv,
+                                                        self._test_population_convergence: test_conv,
+                                                        self._train_mean_convergence: train_mean_conv,
+                                                        self._test_mean_convergence: test_mean_conv,
+                                                        self._train_var_convergence: train_var_conv,
+                                                        self._test_var_convergence: test_var_conv,
+                                                        self._avg_delta: avg_delta,
+                                                        #self._train_quant_error: train_quant_error,
+                                                        #self._test_quant_error: test_quant_error
+                                                        })
+                    summary_writer.add_summary(summary, global_step=iter_no)
 
                 #Save model periodically
                 if iter_no % 10 == 0:
@@ -382,6 +384,7 @@ class SOM(object):
             raise ValueError("SOM not trained yet")
         return self._centroid_grid
 
+    @profile
     def map_vects(self, input_vects):
         """
         Maps each input vector to the relevant neuron in the SOM
@@ -393,9 +396,6 @@ class SOM(object):
         to mapped neuron.
         """
 
-        if not self._trained:
-            raise ValueError("SOM not trained yet")
-
         to_return = []
         for vect in input_vects:
             min_index = min([i for i in range(len(self._weightages))],
@@ -405,13 +405,33 @@ class SOM(object):
 
         return to_return
 
+    @profile
+    def map_vects_mine(self, input_vects):
+        input_vects = input_vects[:, np.newaxis, :]
+        diff_tensor = self._weightages - input_vects
+        diff_tensor = np.linalg.norm(diff_tensor, axis=2)
+        min_indexes = np.argmin(diff_tensor, axis=1).tolist()
+        result = []
+        for index in min_indexes:
+            result.append(self._locations[index])
+        return result
 
+
+    @profile
     def get_BMU(self, input_vect):
         min_index = min([i for i in range(len(self._weightages))],
                             key=lambda x: np.linalg.norm(input_vect-
                                                          self._weightages[x]))
 
         return [min_index,self._locations[min_index]]
+
+    @profile
+    def get_BMU_mine(self, input_vect):
+        diff = np.linalg.norm(self._weightages - input_vect, axis=1)
+        min_index = np.argmin(diff)
+        return [min_index, self._locations[min_index]]
+
+
 
     def detect_superpositions(self, l):
         for l_i in l:
@@ -433,7 +453,7 @@ class SOM(object):
     def get_activations(self, input_vect, normalize=True, threshold=True, mode='exp'):
       # get activations for the word learning
 
-  # Quantization error:
+      # Quantization error:
       activations = list()
       pos_activations = list()
       for i in range(len(self._weightages)):
@@ -482,29 +502,44 @@ class SOM(object):
         for i, y in enumerate(ys):
             class_belonging_dict[y].append(i)
         intra_class_distance = [0 for y in list(set(ys))]
-        for y in set(ys):
-            for index, j in enumerate(class_belonging_dict[y]):
-                x1 = xs[j]
-                for k in class_belonging_dict[y][index+1:]:
-                    x2 = xs[k]
-                    _, pos_x1 = self.get_BMU(x1)
-                    _, pos_x2 = self.get_BMU(x2)
-                    intra_class_distance[y] += np.linalg.norm(pos_x1-pos_x2)
-        class_compactness = None
-        if train == True:
-            class_compactness = self.train_inter_class_distance
-        else:
-            class_compactness = self.test_inter_class_distance
-        if class_compactness == None:
-            class_compactness = 0
-            for i, x1 in enumerate(xs):
-                for j, x2 in enumerate(xs[i+1:]):
-                    class_compactness += np.linalg.norm(x1-x2)
-            class_compactness /= len(xs)
-        if train == True:
-            class_compactness = intra_class_distance/self.train_inter_class_distance
-        else:
-            class_compactness = intra_class_distance/self.test_inter_class_distance
+        bmu_positions = self.map_vects(xs)
+        bmu_positions_ = self.map_vects_mine(xs)
+        try:
+            assert np.all([b1 == b2 for b1, b2 in zip(bmu_positions, bmu_positions_)])
+        except AssertionError:
+            print(bmu_positions)
+            print(bmu_positions_)
+            #sys.exit(1)
+        #sys.exit(1)
+        #for y in set(ys):
+        #    for index, j in enumerate(class_belonging_dict[y]):
+        #        x1 = xs[j]
+        #        for k in class_belonging_dict[y][index+1:]:
+        #            x2 = xs[k]
+        #            #_, pos_x1 = self.get_BMU(x1)
+        #            #_, pos_x2 = self.get_BMU(x2)
+        #            #_, pos_x1 = self.get_BMU_mine(x1)
+        #            #_, pos_x2 = self.get_BMU_mine(x2)
+        #            pos_x1 = bmu_positions[j]
+        #            pos_x2 = bmu_positions[i]
+        #            #assert pos_x1_ == pos_x1
+        #            #assert pos_x2_ == pos_x2
+        #            intra_class_distance[y] += np.linalg.norm(pos_x1-pos_x2)
+        #if train == True:
+        #    class_compactness = self.train_inter_class_distance
+        #else:
+        #    class_compactness = self.test_inter_class_distance
+        #if class_compactness == None:
+        #    class_compactness = 0
+        #    for i, x1 in enumerate(xs):
+        #        for j, x2 in enumerate(xs[i+1:]):
+        #            class_compactness += np.linalg.norm(x1-x2)
+        #    class_compactness /= len(xs)
+        #if train == True:
+        #    class_compactness = intra_class_distance/self.train_inter_class_distance
+        #else:
+        #    class_compactness = intra_class_distance/self.test_inter_class_distance
+        class_compactness = 0
         return class_compactness
 
     @profile
