@@ -43,7 +43,7 @@ class SOM(object):
 
     def __init__(self, m, n, dim, n_iterations=50, alpha=None, sigma=None,
                  tau=0.5, threshold=0.6, batch_size=500, num_classes=10,
-                 checkpoint_dir = None, data='audio'):
+                 checkpoint_loc = None, data='audio'):
         """
         Initializes all necessary components of the TensorFlow
         Graph.
@@ -79,15 +79,17 @@ class SOM(object):
 
         self._n_iterations = abs(int(n_iterations))
 
-        self.logs_path = Constants.DATA_FOLDER + '/tblogs/' + self.get_experiment_name(data)
+        self.data = data
+
+        self.logs_path = Constants.DATA_FOLDER + '/tblogs/' + self.get_experiment_name()
 
         if not os.path.exists(self.logs_path):
             os.makedirs(self.logs_path)
 
-        if checkpoint_dir is None:
-          self.checkpoint_dir = Constants.DATA_FOLDER + '/saved_models/' + data
+        if checkpoint_loc is None:
+          self.checkpoint_loc = Constants.DATA_FOLDER + '/saved_models/' + self.get_experiment_name()
         else:
-          self.checkpoint_dir = checkpoint_dir
+          self.checkpoint_loc = checkpoint_loc
 
         ##INITIALIZE GRAPH
         self._graph = tf.Graph()
@@ -147,8 +149,8 @@ class SOM(object):
             tf.summary.scalar("Train Var Convergence", self._train_var_convergence)
             tf.summary.scalar("Test Var Convergence", self._test_var_convergence)
             tf.summary.scalar("Average Delta", self._avg_delta)
-            tf.summary.scalar("Train Quantization Error", self._train_quant_error)
-            tf.summary.scalar("Test Quantization Error", self._test_quant_error)
+            #tf.summary.scalar("Train Quantization Error", self._train_quant_error)
+            #tf.summary.scalar("Test Quantization Error", self._test_quant_error)
 
             # will be set when computing the class compactness for the first time
             self.train_inter_class_distance = None
@@ -291,7 +293,8 @@ class SOM(object):
                     train_comp = [0]
                     train_mean_conv, train_var_conv, train_conv = self.population_based_convergence(input_vects)
                     print('train: mean {} var {} tot {}'.format(train_mean_conv, train_var_conv, train_conv))
-                    train_quant_error = self.quantization_error(input_vects)
+                    #train_quant_error = self.quantization_error(input_vects)
+                    train_quant_error = [0]
                     #print(train_conv)
                 else:
                     train_comp = [0]
@@ -301,7 +304,8 @@ class SOM(object):
                     test_comp = [0]
                     test_mean_conv, test_var_conv, test_conv = self.population_based_convergence(test_vects)
                     print('test: mean {} var {} tot {}'.format(test_mean_conv, test_var_conv, test_conv))
-                    test_quant_error = self.quantization_error(test_vects)
+                    #test_quant_error = self.quantization_error(test_vects)
+                    test_quant_error = [0]
                     #print(test_conv)
                 else:
                     test_comp = [0]
@@ -316,17 +320,16 @@ class SOM(object):
                                                     self._train_var_convergence: train_var_conv,
                                                     self._test_var_convergence: test_var_conv,
                                                     self._avg_delta: avg_delta,
-                                                    self._train_quant_error: train_quant_error,
-                                                    self._test_quant_error: test_quant_error
+                                                    #self._train_quant_error: train_quant_error,
+                                                    #self._test_quant_error: test_quant_error
                                                     })
                 summary_writer.add_summary(summary, global_step=iter_no)
 
                 #Save model periodically
-                if iter_no % 20 == 0:
-                    if not os.path.exists(self.checkpoint_dir):
-                        os.makedirs(self.checkpoint_dir)
-                    path = os.path.join(self.checkpoint_dir,
-                                 self.get_experiment_name(self.checkpoint_dir) + '_' + str(iter_no)+ 'epoch.ckpt')
+                if iter_no % 10 == 0:
+                    if not os.path.exists(self.checkpoint_loc):
+                        os.makedirs(self.checkpoint_loc)
+                    path = self.checkpoint_loc + '_' + str(iter_no)+ 'epoch.ckpt'
                     print('Saving in {}'.format(path))
                     saver.save(self._sess, path)
             for i, loc in enumerate(self._locations):
@@ -336,15 +339,14 @@ class SOM(object):
             self._trained = True
 
             # Save the final model
-            if not os.path.exists(self.checkpoint_dir):
-                os.makedirs(self.checkpoint_dir)
-            path = os.path.join(self.checkpoint_dir,
-                         self.get_experiment_name(self.checkpoint_dir) + '_final.ckpt')
+            if not os.path.exists(self.checkpoint_loc):
+                os.makedirs(self.checkpoint_loc)
+            path = self.checkpoint_loc + '_final.ckpt'
             print('Saving in {}'.format(path))
             saver.save(self._sess, path)
 
     def restore_trained(self):
-        ckpt = tf.train.get_checkpoint_state(self.checkpoint_dir)
+        ckpt = tf.train.get_checkpoint_state(self.checkpoint_loc)
         if ckpt and ckpt.model_checkpoint_path:
             with self._sess:
               saver = tf.train.Saver()
@@ -366,8 +368,8 @@ class SOM(object):
             print('NO CHECKPOINT FOUND')
             return False
 
-    def get_experiment_name(self, data):
-        return self._m + 'x' + self._n + '_' + data + '_tau' + str(self.tau) + '_thrsh' \
+    def get_experiment_name(self):
+        return str(self.data) + '_' + str(self._m) + 'x' + str(self._n) + '_tau' + str(self.tau) + '_thrsh' \
                + str(self.threshold) + '_sigma' + str(self.sigma) + '_batch' + str(self.batch_size) \
                + '_alpha' + str(self.alpha)
 
