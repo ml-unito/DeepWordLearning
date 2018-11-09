@@ -31,9 +31,12 @@ if __name__ == '__main__':
                         help='Number of neurons for audio SOM, first dimension')
     parser.add_argument('--neurons2', type=int, default=50,
                         help='Number of neurons for audio SOM, second dimension')
+    parser.add_argument('--epochs', type=int, default=10000,
+                        help='Number of epochs the SOM will be trained for')
     parser.add_argument('--subsample', action='store_true', default=False)
     parser.add_argument('--data', metavar='data', type=str, default='audio')
     parser.add_argument('--rotation', action='store_true', default=False)
+    parser.add_argument('--logging', action='store_true', default=False)
 
     args = parser.parse_args()
 
@@ -47,20 +50,20 @@ if __name__ == '__main__':
 
     dim = len(xs[0])
 
-    som = SOM(args.neurons1, args.neurons2, dim, n_iterations=10000, alpha=args.alpha,
+    som = SOM(args.neurons1, args.neurons2, dim, n_iterations=args.epochs, alpha=args.alpha,
                  tau=0.1, threshold=0.6, batch_size=100, data=args.data, sigma=args.sigma)
 
     ys = np.array(ys)
     xs = np.array(xs)
 
     if args.subsample:
-        xs, _, ys, _ = train_test_split(xs, ys, test_size=0.6, stratify=ys, random_state=args.seed)
-        print('Training on {} examples.'.format(len(xs)))
-
+        xs, _, ys, _ = train_test_split(xs, ys, test_size=0.8, stratify=ys, random_state=args.seed)
+    print('Training on {} examples.'.format(len(xs)))
 
     xs_train, xs_test, ys_train, ys_test = train_test_split(xs, ys, test_size=0.2, stratify=ys,
                                                             random_state=args.seed)
 
     xs_train, xs_test = transform_data(xs_train, xs_test, rotation=args.rotation)
 
-    som.train(xs_train, input_classes=ys_train, test_vects=xs_test, test_classes=ys_test)
+    som.train(xs_train, input_classes=ys_train, test_vects=xs_test, test_classes=ys_test,
+              logging=args.logging)
