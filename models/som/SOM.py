@@ -512,11 +512,11 @@ class SOM(object):
         bmu_positions = self.map_vects_mine(xs)
         for y in set(ys):
             for index, j in enumerate(class_belonging_dict[y]):
-                x1 = xs[j]
-                for k in class_belonging_dict[y][index+1:]:
+                x1 = xs[index]
+                for k in class_belonging_dict[y][j+1:]:
                     x2 = xs[k]
-                    pos_x1 = bmu_positions[j]
-                    pos_x2 = bmu_positions[i]
+                    pos_x1 = bmu_positions[index]
+                    pos_x2 = bmu_positions[k]
                     intra_class_distance[y] += np.linalg.norm(pos_x1-pos_x2)
         if train == True:
             inter_class_distance = self.train_inter_class_distance
@@ -526,7 +526,9 @@ class SOM(object):
             inter_class_distance = 0
             for i, x1 in enumerate(xs):
                 for j, x2 in enumerate(xs[i+1:]):
-                    inter_class_distance += np.linalg.norm(x1-x2)
+                    pos_x1 = bmu_positions[i]
+                    pos_x2 = bmu_positions[j]
+                    inter_class_distance += np.linalg.norm(pos_x1 - pos_x2)
             inter_class_distance /= len(xs)
             if train == True:
                 self.train_inter_class_distance = inter_class_distance
