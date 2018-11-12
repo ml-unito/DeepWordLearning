@@ -33,11 +33,11 @@ parser.add_argument('--algo', metavar='algo', type=str, default='sorted',
                     help='Algorithm choice')
 parser.add_argument('--aneurons1', type=int, default=50,
                     help='Number of neurons for audio SOM, first dimension')
-parser.add_argument('--aneurons2', type=int, default=50,
+parser.add_argument('--aneurons1', type=int, default=50,
                     help='Number of neurons for audio SOM, second dimension')
 parser.add_argument('--vneurons1', type=int, default=50,
                     help='Number of neurons for visual SOM, first dimension')
-parser.add_argument('--vneurons2', type=int, default=50,
+parser.add_argument('--vneurons1', type=int, default=50,
                     help='Number of neurons for visual SOM, second dimension')
 parser.add_argument('--source', metavar='source', type=str, default='v',
                     help='Source SOM')
@@ -123,8 +123,8 @@ if __name__ == '__main__':
     a_ys = np.array(a_ys)
 
     if SUBSAMPLE:
-        a_xs, _, a_ys, _ = train_test_split(a_xs, a_ys, test_size=0.6, stratify=a_ys, random_state=random_seed)
-        v_xs, _, v_ys, _ = train_test_split(v_xs, v_ys, test_size=0.8, stratify=v_ys, random_state=random_seed)
+        a_xs, _, a_ys, _ = train_test_split(a_xs, a_ys, test_size=0.8, stratify=a_ys)
+        v_xs, _, v_ys, _ = train_test_split(v_xs, v_ys, test_size=0.8, stratify=v_ys)
         print('Audio: training on {} examples.'.format(len(a_xs)))
         print('Image: training on {} examples.'.format(len(v_xs)))
 
