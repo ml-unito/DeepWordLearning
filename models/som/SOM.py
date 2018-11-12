@@ -260,6 +260,8 @@ class SOM(object):
         with self._sess:
             saver = tf.train.Saver()
             summary_writer = tf.summary.FileWriter(self.logs_path)
+            old_train_comp = [0]
+            old_test_comp = [0]
             for iter_no in range(self._n_iterations):
                 if iter_no % 5 == 0:
                     print('Iteration {}'.format(iter_no))
@@ -291,13 +293,11 @@ class SOM(object):
 
                 if logging == True:
                 #Run summaries
-                    old_train_comp = [0]
-                    old_test_comp = [0]
                     if input_classes is not None:
                         train_comp = old_train_comp
                         if iter_no % 20 == 0:
                             train_comp = self.class_compactness(input_vects, input_classes)
-                            print('Train compactness: {}'.format(train_comp))
+                            print('Train compactness: {}'.format(np.mean(train_comp)))
                             old_train_comp = train_comp
                         train_mean_conv, train_var_conv, train_conv = self.population_based_convergence(input_vects)
                         print('train: mean {} var {} tot {}'.format(train_mean_conv, train_var_conv, train_conv))
@@ -311,7 +311,7 @@ class SOM(object):
                         test_comp = old_test_comp
                         if iter_no % 20 == 0:
                             test_comp = self.class_compactness(test_vects, test_classes, train=False)
-                            print('Test compactness: {}'.format(test_comp))
+                            print('Test compactness: {}'.format(np.mean(test_comp)))
                             old_test_comp = test_comp
                         test_mean_conv, test_var_conv, test_conv = self.population_based_convergence(test_vects)
                         print('test: mean {} var {} tot {}'.format(test_mean_conv, test_var_conv, test_conv))
