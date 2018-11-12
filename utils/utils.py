@@ -211,3 +211,62 @@ def get_plot_filename(folder_path):
     while os.path.exists(os.path.join(folder_path, date_str + "_" + str(i)) + '.png'):
         i += 1
     return date_str + "_" + str(i) + '.png'
+
+def create_folds(a_xs, v_xs, a_ys, v_ys, n_folds=1, n_classes=100):
+    '''
+    In this context, a fold is an array of data that has n_folds examples
+    from each class.
+    '''
+    #assert len(a_xs) == len(v_xs) == len(a_ys) == len(v_ys)
+    assert n_folds * n_classes <= len(a_xs)
+    ind = a_ys.argsort()
+    a_xs = a_xs[ind]
+    a_ys = a_ys[ind]
+    ind = v_ys.argsort()
+    v_xs = v_xs[ind]
+    v_ys = v_ys[ind]
+    # note that a_xs_ is not a_xs
+    a_xs_ = [a_x for a_x in a_xs]
+    a_ys_ = [a_y for a_y in a_ys]
+    v_xs_ = [v_x for v_x in v_xs]
+    v_ys_ = [v_y for v_y in v_ys]
+    a_xs_fold = []
+    a_ys_fold = []
+    v_xs_fold = []
+    v_ys_fold = []
+    for i in range(n_folds):
+        for c in range(n_classes):
+            a_idx = a_ys_.index(c)
+            v_idx = v_ys_.index(c)
+            a_xs_fold.append(a_xs_[a_idx])
+            a_ys_fold.append(c)
+            v_xs_fold.append(v_xs_[v_idx])
+            v_ys_fold.append(c)
+            # delete elements so that they are not found again
+            # and put in other folds
+            del a_xs_[a_idx]
+            del a_ys_[a_idx]
+            del v_xs_[v_idx]
+            del v_ys_[v_idx]
+    return a_xs_fold, v_xs_fold, a_ys_fold, v_ys_fold
+
+def transform_data(xs, test_xs, rotation=True):
+    '''
+    Makes the column-wise mean of the input matrix xs 0; renders the variance 1;
+    uses the eigenvector matrix $U^T$ to center the data around the direction
+    of maximum variation in the data matrix xs.
+    '''
+    xs -= np.mean(xs, axis=0)
+    xs /= np.std(xs, axis=0)
+    if rotation:
+        covariance_matrix = np.cov(xs, rowvar=False)
+        eig_vals, eig_vecs = np.linalg.eigh(covariance_matrix)
+        idx = np.argsort(eig_vals)[::-1]
+        eig_vecs = eig_vecs[idx]
+        xs = np.dot(eig_vecs.T, xs.T).T
+
+    test_xs -= np.mean(xs, axis=0)
+    test_xs /= np.std(xs, axis=0)
+    if rotation:
+        test_xs = np.dot(eig_vecs.T, xs.T).T
+    return xs, test_xs
