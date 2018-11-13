@@ -295,7 +295,7 @@ class SOM(object):
                 #Run summaries
                     if input_classes is not None:
                         train_comp = old_train_comp
-                        if iter_no % 20 == 0:
+                        if iter_no % 40 == 0:
                             if self.data == 'video':
                                 train_comp = self.class_compactness(input_vects, input_classes)
                             else:
@@ -312,7 +312,7 @@ class SOM(object):
                         train_conv = [0]
                     if test_classes is not None:
                         test_comp = old_test_comp
-                        if iter_no % 20 == 0:
+                        if iter_no % 40 == 0:
                             if self.data == 'video':
                                 test_comp = self.class_compactness(test_vects, test_classes, train=False)
                             else:
@@ -343,7 +343,7 @@ class SOM(object):
                     summary_writer.add_summary(summary, global_step=iter_no)
 
                 #Save model periodically
-                if iter_no % 10 == 0:
+                if iter_no % 40 == 0:
                     if not os.path.exists(self.checkpoint_loc):
                         os.makedirs(self.checkpoint_loc)
                     path = self.checkpoint_loc + '_' + str(iter_no)+ 'epoch.ckpt'
@@ -599,11 +599,11 @@ class SOM(object):
         var_stat = np.multiply(lhs, rhs)
         var_pos_converged = var_stat[var_stat != 0]
 
-        print('Mean converged features: {}'.format(len(mean_pos_converged)))
-        print('Current ratio: {}'.format(data_feature_var / neuron_feature_var))
-        print('Average ratio: {}'.format(np.mean(data_feature_var / neuron_feature_var)))
-        print('Variance of ratio: {}'.format(np.var(data_feature_var / neuron_feature_var)))
-        print('Var converged features: {}'.format(len(var_pos_converged)))
+        #print('Mean converged features: {}'.format(len(mean_pos_converged)))
+        #print('Current ratio: {}'.format(data_feature_var / neuron_feature_var))
+        #print('Average ratio: {}'.format(np.mean(data_feature_var / neuron_feature_var)))
+        #print('Variance of ratio: {}'.format(np.var(data_feature_var / neuron_feature_var)))
+        #print('Var converged features: {}'.format(len(var_pos_converged)))
 
         # return normalized values for mean, variance and total convergence
         return len(mean_pos_converged) / len(neuron_feature_mean), \
