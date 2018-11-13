@@ -296,10 +296,7 @@ class SOM(object):
                     if input_classes is not None:
                         train_comp = old_train_comp
                         if iter_no % 40 == 0:
-                            if self.data == 'video':
-                                train_comp = self.class_compactness(input_vects, input_classes)
-                            else:
-                                train_comp = self.class_compactness(input_vects, input_classes, strategy='parallel')
+                            train_comp = self.class_compactness(input_vects, input_classes)
                             print('Train compactness: {}'.format(np.mean(train_comp)))
                             old_train_comp = train_comp
                         train_mean_conv, train_var_conv, train_conv = self.population_based_convergence(input_vects)
@@ -313,10 +310,7 @@ class SOM(object):
                     if test_classes is not None:
                         test_comp = old_test_comp
                         if iter_no % 40 == 0:
-                            if self.data == 'video':
-                                test_comp = self.class_compactness(test_vects, test_classes, train=False)
-                            else:
-                                test_comp = self.class_compactness(test_vects, test_classes, train=False, strategy='parallel')
+                            test_comp = self.class_compactness(test_vects, test_classes, train=False)
                             print('Test compactness: {}'.format(np.mean(test_comp)))
                             old_test_comp = test_comp
                         test_mean_conv, test_var_conv, test_conv = self.population_based_convergence(test_vects)
@@ -457,6 +451,38 @@ class SOM(object):
                 if all(x == l_i[0] for x in l_i) == False:
                     return True
         return False
+
+    def neuron_collapse(self, input_vects):
+        bmu_positions = self.map_vects_memory_aware(input_vects)
+        ratio_examples = len(set(bmu_positions)) / len(input_vects)
+        ratio_neurons = len(set(bmu_positions)) / (self._m * self._n)
+        print('Detected {} unique BMUs. \n Ratio of {} over the examples; ratio of {} over the number of neurons' \
+               .format(len(set(bmu_positions))), ratio_examples, ratio_neurons)
+        return ratio_examples, ratio_neurons
+
+    def neuron_collapse_classwise(self, input_vects, ys):
+        bmu_positions = self.map_vects_memory_aware(input_vects)
+        class_belonging_dict = {y: [] for y in list(set(ys))}
+        classwise_collapse = [0 for y in list(set(ys))]
+        classwise_bmus = [[] for y in list(set(ys))]
+        for i, y in enumerate(ys):
+            class_belonging_dict[y].append(i)
+        for y in set(ys):
+            class_xs = [input_vects[i] for i in class_belonging_dict[y]]
+            class_bmu_positions = self.map_vects_parallel(class_xs)
+            class_unique_bmus = list(set(class_bmu_positions))
+            classwise_bmus[y] = unique_bmus
+            classwise_collapse[y] = len(class_unique_bmus)
+        non_bmu_positions = self._neuron_locations(self, self._m, self._n)
+        for bmu_position in bmu_positions:
+            non_bmu_positions.remove(bmu_position)
+        print('Non-BMU neurons: {}, ratio over the neurons {}'.format(len(non_bmu_positions), len(non_bmu_positions)/(self._m * self._n)))
+        print('Per-class unique BMUs: {}'.format(classwise_collapse))
+        print('Average BMUs for each class: {}'.format(np.mean(classwise_collapse)))
+        print('Average ratio over the examples: {}'.format(classwise_collapse/len(input_vects)))
+        print('Average ratio over the neurons: {}'.format(classwise_collapse/(self._m * self._n)))
+        return classwise_collapse, classwise_bmus
+
 
     def memorize_examples_by_class(self, X, y):
         self.bmu_class_dict = {i : [] for i in range(self._n * self._m)}
