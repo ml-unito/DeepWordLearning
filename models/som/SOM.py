@@ -296,7 +296,10 @@ class SOM(object):
                     if input_classes is not None:
                         train_comp = old_train_comp
                         if iter_no % 20 == 0:
-                            train_comp = self.class_compactness(input_vects, input_classes)
+                            if self.data == 'video':
+                                train_comp = self.class_compactness(input_vects, input_classes)
+                            else:
+                                train_comp = self.class_compactness(input_vects, input_classes, strategy='parallel')
                             print('Train compactness: {}'.format(np.mean(train_comp)))
                             old_train_comp = train_comp
                         train_mean_conv, train_var_conv, train_conv = self.population_based_convergence(input_vects)
@@ -310,7 +313,10 @@ class SOM(object):
                     if test_classes is not None:
                         test_comp = old_test_comp
                         if iter_no % 20 == 0:
-                            test_comp = self.class_compactness(test_vects, test_classes, train=False)
+                            if self.data == 'video':
+                                test_comp = self.class_compactness(test_vects, test_classes, train=False)
+                            else:
+                                test_comp = self.class_compactness(test_vects, test_classes, train=False, strategy='parallel')
                             print('Test compactness: {}'.format(np.mean(test_comp)))
                             old_test_comp = test_comp
                         test_mean_conv, test_var_conv, test_conv = self.population_based_convergence(test_vects)
@@ -509,14 +515,17 @@ class SOM(object):
 
     @profile
     def class_compactness(self, xs, ys, train=True, strategy='memory-aware'):
+        if strategy == 'memory-aware':
+            bmu_positions = self.map_vects_memory_aware(xs)
+        elif strategy == 'parallel':
+            bmu_positions = self.map_vects_parallel(xs)
+        else:
+            raise ValueError('Unrecognized strategy parameter in class_compactness function.')
+            sys.exit(1)
         class_belonging_dict = {y: [] for y in list(set(ys))}
         for i, y in enumerate(ys):
             class_belonging_dict[y].append(i)
         intra_class_distance = [0 for y in list(set(ys))]
-        if strategy == 'memory-aware':
-            bmu_positions = self.map_vects_memory_aware(xs)
-        else:
-            bmu_positions = self.map_vects_parallel(xs)
         for y in set(ys):
             for index, j in enumerate(class_belonging_dict[y]):
                 x1 = xs[j]
