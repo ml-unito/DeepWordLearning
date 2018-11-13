@@ -414,6 +414,19 @@ class SOM(object):
         return to_return
 
     @profile
+    def get_BMU(self, input_vect):
+        min_index = min([i for i in range(len(self._weightages))],
+                            key=lambda x: np.linalg.norm(input_vect-
+                                                         self._weightages[x]))
+        return [min_index,self._locations[min_index]]
+
+    @profile
+    def get_BMU_mine(self, input_vect):
+        diff = np.linalg.norm(self._weightages - input_vect, axis=1)
+        min_index = np.argmin(diff)
+        return [min_index, self._locations[min_index]]
+
+    @profile
     def map_vects_parallel(self, input_vects):
         input_vects = input_vects[:, np.newaxis, :]
         diff_tensor = self._weightages - input_vects
@@ -428,25 +441,9 @@ class SOM(object):
     def map_vects_memory_aware(self, input_vects):
         result = []
         for x in input_vects:
-            _, bmu_loc = get_BMU_mine(x)
+            _, bmu_loc = self.get_BMU_mine(x)
             result.append(bmu_loc)
         return result
-
-
-    @profile
-    def get_BMU(self, input_vect):
-        min_index = min([i for i in range(len(self._weightages))],
-                            key=lambda x: np.linalg.norm(input_vect-
-                                                         self._weightages[x]))
-        return [min_index,self._locations[min_index]]
-
-    @profile
-    def get_BMU_mine(self, input_vect):
-        diff = np.linalg.norm(self._weightages - input_vect, axis=1)
-        min_index = np.argmin(diff)
-        return [min_index, self._locations[min_index]]
-
-
 
     def detect_superpositions(self, l):
         for l_i in l:
