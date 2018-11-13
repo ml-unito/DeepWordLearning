@@ -414,7 +414,7 @@ class SOM(object):
         return to_return
 
     @profile
-    def map_vects_mine(self, input_vects):
+    def map_vects_parallel(self, input_vects):
         input_vects = input_vects[:, np.newaxis, :]
         diff_tensor = self._weightages - input_vects
         diff_tensor = np.linalg.norm(diff_tensor, axis=2)
@@ -422,6 +422,14 @@ class SOM(object):
         result = []
         for index in min_indexes:
             result.append(self._locations[index])
+        return result
+
+    @profile
+    def map_vects_memory_aware(self, input_vects):
+        result = []
+        for x in input_vects:
+            _, bmu_loc = get_BMU_mine(x)
+            result.append(bmu_loc)
         return result
 
 
@@ -502,20 +510,22 @@ class SOM(object):
                      bbox=dict(facecolor=color_names[y[i]], alpha=0.5, lw=0))
         plt.savefig(os.path.join(Constants.PLOT_FOLDER, plot_name))
 
-    ## TODO: la inter_class_distance può essere calcolata una sola volta per dataset
     @profile
-    def class_compactness(self, xs, ys, train=True):
+    def class_compactness(self, xs, ys, train=True, strategy='memory-aware'):
         class_belonging_dict = {y: [] for y in list(set(ys))}
         for i, y in enumerate(ys):
             class_belonging_dict[y].append(i)
         intra_class_distance = [0 for y in list(set(ys))]
-        bmu_positions = self.map_vects_mine(xs)
+        if strategy == 'memory-aware':
+            bmu_positions = self.map_vects_memory_aware(xs)
+        else:
+            bmu_positions = self.map_vects_parallel(xs)
         for y in set(ys):
             for index, j in enumerate(class_belonging_dict[y]):
-                x1 = xs[index]
-                for k in class_belonging_dict[y][j+1:]:
+                x1 = xs[j]
+                for k in class_belonging_dict[y][index+1:]:
                     x2 = xs[k]
-                    pos_x1 = bmu_positions[index]
+                    pos_x1 = bmu_positions[j]
                     pos_x2 = bmu_positions[k]
                     intra_class_distance[y] += np.linalg.norm(pos_x1-pos_x2)
         if train == True:
