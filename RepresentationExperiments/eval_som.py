@@ -1,7 +1,11 @@
 from models.som.SOM import SOM
-from models.som.HebbianModel import HebbianModel
 from utils.constants import Constants
-from utils.utils import from_csv_with_filenames, from_csv_visual_100classes, from_csv, to_csv
+from utils.utils import from_csv_with_filenames, from_csv_visual_100classes, from_csv, to_csv, transform_data
+from sklearn.model_selection import train_test_split
+
+import os
+import argparse
+import numpy as np
 
 audio_data_path = os.path.join(Constants.DATA_FOLDER,
                                '100classes',
@@ -21,6 +25,13 @@ if __name__ == '__main__':
                         help='Number of neurons for SOM, second dimension')
     parser.add_argument('--subsample', action='store_true', default=False)
     parser.add_argument('--rotation', action='store_true', default=False)
+    parser.add_argument('--batch', type=int, default=128)
+    parser.add_argument('--sigma', metavar='sigma', type=float, default=10, help='The model neighborhood value')
+    parser.add_argument('--alpha', metavar='alpha', type=float, default=0.0001, help='The SOM initial learning rate')
+    parser.add_argument('--epochs', type=int, default=10000,
+                        help='Number of epochs the SOM will be trained for')
+
+    args = parser.parse_args()
 
     if args.data == 'audio':
         xs, ys, _ = from_csv_with_filenames(audio_data_path)
@@ -29,7 +40,9 @@ if __name__ == '__main__':
     else:
         raise ValueError('--data argument not recognized')
 
-    som = SOM(args.neurons1, args.neurons2, dim, n_iterations=args.epochs, alpha=args.alpha,
+    dim = len(xs[0])
+
+    som = SOM(args.neurons1, args.neurons2, dim, n_iterations=args.epochs, alpha=args.alpha, checkpoint_loc=args.path,
                  tau=0.1, threshold=0.6, batch_size=args.batch, data=args.data, sigma=args.sigma)
 
     ys = np.array(ys)
@@ -41,17 +54,11 @@ if __name__ == '__main__':
     xs_train, xs_test, ys_train, ys_test = train_test_split(xs, ys, test_size=0.2, stratify=ys,
                                                             random_state=args.seed)
 
-    xs_train, xs_val, ys_train, ys_val = train_test_split(xs, ys, test_size=0.5, stratify=ys,
+    xs_train, xs_val, ys_train, ys_val = train_test_split(xs_train, ys_train, test_size=0.5, stratify=ys_train,
                                                             random_state=args.seed)
 
     xs_train, xs_test = transform_data(xs_train, xs_val, rotation=args.rotation)
 
-    som.restore_trained()
+    som.restore_trained(args.path)
 
-    print('Computing compactness...')
-    compactness = som.class_compactness(xs_val, ys_val)
-    print('Compactness: {}'.format(compactness))
-    print('Computing neuron collapse...')
-    collapse_ratio_examples, collapse_ratio_neurons = neuron_collapse(xs_val, ys_val)
-    print('Computing class-wise neuron collapse...')
-    classwise_ratio_examples, classwise_ratio_neurons = neuron_collapse_classwise(xs_val, ys_val)
+    som.print_som_evaluation(xs_val, ys_val)

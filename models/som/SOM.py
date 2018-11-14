@@ -249,7 +249,7 @@ class SOM(object):
                 yield np.array([i, j])
 
     def train(self, input_vects, input_classes=None, test_vects=None, test_classes=None,
-              logging=True):
+              logging=True, save_every=40):
         """
         Trains the SOM.
         'input_vects' should be an iterable of 1-D NumPy arrays with
@@ -258,7 +258,7 @@ class SOM(object):
         taken as starting conditions for training.
         """
         with self._sess:
-            saver = tf.train.Saver()
+            saver = tf.train.Saver(max_to_keep=int(np.ceil(self._n_iterations/save_every)))
             summary_writer = tf.summary.FileWriter(self.logs_path)
             old_train_comp = [0]
             old_test_comp = [0]
@@ -295,7 +295,7 @@ class SOM(object):
                 #Run summaries
                     if input_classes is not None:
                         train_comp = old_train_comp
-                        if iter_no % 40 == 0:
+                        if iter_no % save_every == 0:
                             train_comp = self.class_compactness(input_vects, input_classes)
                             print('Train compactness: {}'.format(np.mean(train_comp)))
                             old_train_comp = train_comp
@@ -309,7 +309,7 @@ class SOM(object):
                         train_conv = [0]
                     if test_classes is not None:
                         test_comp = old_test_comp
-                        if iter_no % 40 == 0:
+                        if iter_no % save_every == 0:
                             test_comp = self.class_compactness(test_vects, test_classes, train=False)
                             print('Test compactness: {}'.format(np.mean(test_comp)))
                             old_test_comp = test_comp
@@ -337,12 +337,13 @@ class SOM(object):
                     summary_writer.add_summary(summary, global_step=iter_no)
 
                 #Save model periodically
-                if iter_no % 40 == 0:
+                if iter_no % save_every == 0:
+                    dirpath = self.checkpoint_loc + '_' + str(iter_no) +'_epoch' + os.sep
                     if not os.path.exists(self.checkpoint_loc):
                         os.makedirs(self.checkpoint_loc)
-                    path = self.checkpoint_loc + '_' + str(iter_no)+ 'epoch.ckpt'
+                    path = dirpath + 'model'
                     print('Saving in {}'.format(path))
-                    saver.save(self._sess, path)
+                    saver.save(self._sess, path, global_step=iter_no)
             for i, loc in enumerate(self._locations):
                 centroid_grid[loc[0]].append(self._weightages[i])
             self._centroid_grid = centroid_grid
@@ -350,14 +351,18 @@ class SOM(object):
             self._trained = True
 
             # Save the final model
+            dirpath = self.checkpoint_loc + '_final' + os.sep
             if not os.path.exists(self.checkpoint_loc):
                 os.makedirs(self.checkpoint_loc)
-            path = self.checkpoint_loc + '_final.ckpt'
+            path = dirpath + 'model'
             print('Saving in {}'.format(path))
             saver.save(self._sess, path)
 
-    def restore_trained(self):
-        ckpt = tf.train.get_checkpoint_state(self.checkpoint_loc)
+    def restore_trained(self, path):
+        """
+        path should be the folder containing the checkpoints.
+        """
+        ckpt = tf.train.get_checkpoint_state(path)
         if ckpt and ckpt.model_checkpoint_path:
             with self._sess:
               saver = tf.train.Saver()
@@ -452,35 +457,60 @@ class SOM(object):
                     return True
         return False
 
-    def neuron_collapse(self, input_vects):
+    def print_som_evaluation(self, input_vects, ys):
         bmu_positions = self.map_vects_memory_aware(input_vects)
+        #class_comp = self.class_compactness(input_vects, ys, train=False)
+        #print('Class Compactness: {}'.format(class_comp))
+        #print('Average Compactness: {}'.format(np.mean(class_comp)))
+        #print('Compactness Variance: {}'.format(np.var(class_comp)))
+        #self.neuron_collapse(input_vects, bmu_positions=bmu_positions)
+        self.neuron_collapse_classwise(input_vects, ys, bmu_positions=bmu_positions)
+
+    def neuron_collapse(self, input_vects, bmu_positions=None):
+        if bmu_positions == None:
+            bmu_positions = self.map_vects_memory_aware(input_vects)
+        bmu_positions = [tuple(bmu_pos) for bmu_pos in bmu_positions]
         ratio_examples = len(set(bmu_positions)) / len(input_vects)
         ratio_neurons = len(set(bmu_positions)) / (self._m * self._n)
         print('Detected {} unique BMUs. \n Ratio of {} over the examples; ratio of {} over the number of neurons' \
-               .format(len(set(bmu_positions))), ratio_examples, ratio_neurons)
+               .format(len(set(bmu_positions)), ratio_examples, ratio_neurons))
         return ratio_examples, ratio_neurons
 
-    def neuron_collapse_classwise(self, input_vects, ys):
-        bmu_positions = self.map_vects_memory_aware(input_vects)
+    def neuron_collapse_classwise(self, input_vects, ys, bmu_positions=None):
+        if bmu_positions == None:
+            bmu_positions = self.map_vects_memory_aware(input_vects)
+        bmu_positions = [tuple(bmu_pos) for bmu_pos in bmu_positions]
         class_belonging_dict = {y: [] for y in list(set(ys))}
         classwise_collapse = [0 for y in list(set(ys))]
         classwise_bmus = [[] for y in list(set(ys))]
+        #all_neurons = list(self._neuron_locations(self._m, self._n))
+        #all_neurons = [tuple(bmu_pos) for bmu_pos in all_neurons]
+        #all_neurons = {neuron_position: [] for neuron_position in all_neurons}
         for i, y in enumerate(ys):
             class_belonging_dict[y].append(i)
         for y in set(ys):
             class_xs = [input_vects[i] for i in class_belonging_dict[y]]
-            class_bmu_positions = self.map_vects_parallel(class_xs)
+            class_bmu_positions = self.map_vects_memory_aware(class_xs)
+            class_bmu_positions = [tuple(class_bmu_pos) for class_bmu_pos in class_bmu_positions]
+            #for bmu_pos in class_bmu_positions:
+            #    all_neurons[bmu_pos].append(y)
             class_unique_bmus = list(set(class_bmu_positions))
-            classwise_bmus[y] = unique_bmus
+            classwise_bmus[y] = class_unique_bmus
             classwise_collapse[y] = len(class_unique_bmus)
-        non_bmu_positions = self._neuron_locations(self, self._m, self._n)
+        non_bmu_positions = list(self._neuron_locations(self._m, self._n))
+        non_bmu_positions = [tuple(non_bmu_pos) for non_bmu_pos in non_bmu_positions]
         for bmu_position in bmu_positions:
-            non_bmu_positions.remove(bmu_position)
+            try:
+                non_bmu_positions.remove(bmu_position)
+            except ValueError:
+                pass
         print('Non-BMU neurons: {}, ratio over the neurons {}'.format(len(non_bmu_positions), len(non_bmu_positions)/(self._m * self._n)))
         print('Per-class unique BMUs: {}'.format(classwise_collapse))
+        print('If there was no class overlap, the non-BMU neurons would be {}'.format(self._m * self._n - sum(classwise_collapse)))
+        print('Non-Overlap index: {}'.format((self._m * self._n - sum(classwise_collapse)) / len(non_bmu_positions)))
         print('Average BMUs for each class: {}'.format(np.mean(classwise_collapse)))
-        print('Average ratio over the examples: {}'.format(classwise_collapse/len(input_vects)))
-        print('Average ratio over the neurons: {}'.format(classwise_collapse/(self._m * self._n)))
+        print('Average ratio over the examples: {}'.format(np.mean(classwise_collapse)/len(input_vects)))
+        print('Average ratio over the neurons: {}'.format(np.mean(classwise_collapse)/(self._m * self._n)))
         return classwise_collapse, classwise_bmus
 
 
