@@ -20,6 +20,7 @@ import numpy as np
 import math
 import os
 import matplotlib
+import sys
 matplotlib.use('Agg')
 matplotlib.rcParams.update({'font.size': 8})
 import matplotlib.pyplot as plt
@@ -476,24 +477,25 @@ class SOM(object):
                .format(len(set(bmu_positions)), ratio_examples, ratio_neurons))
         return ratio_examples, ratio_neurons
 
-    def neuron_collapse_classwise(self, input_vects, ys, bmu_positions=None):
+    def neuron_collapse_classwise(self, input_vects, ys, bmu_positions=None,
+                                  num_classes=100):
         if bmu_positions == None:
             bmu_positions = self.map_vects_memory_aware(input_vects)
         bmu_positions = [tuple(bmu_pos) for bmu_pos in bmu_positions]
         class_belonging_dict = {y: [] for y in list(set(ys))}
         classwise_collapse = [0 for y in list(set(ys))]
         classwise_bmus = [[] for y in list(set(ys))]
-        #all_neurons = list(self._neuron_locations(self._m, self._n))
-        #all_neurons = [tuple(bmu_pos) for bmu_pos in all_neurons]
-        #all_neurons = {neuron_position: [] for neuron_position in all_neurons}
+        all_neurons = list(self._neuron_locations(self._m, self._n))
+        all_neurons = [tuple(bmu_pos) for bmu_pos in all_neurons]
+        all_neurons = {neuron_position: [] for neuron_position in all_neurons}
         for i, y in enumerate(ys):
             class_belonging_dict[y].append(i)
         for y in set(ys):
             class_xs = [input_vects[i] for i in class_belonging_dict[y]]
             class_bmu_positions = self.map_vects_memory_aware(class_xs)
             class_bmu_positions = [tuple(class_bmu_pos) for class_bmu_pos in class_bmu_positions]
-            #for bmu_pos in class_bmu_positions:
-            #    all_neurons[bmu_pos].append(y)
+            for bmu_pos in class_bmu_positions:
+                all_neurons[bmu_pos].append(y)
             class_unique_bmus = list(set(class_bmu_positions))
             classwise_bmus[y] = class_unique_bmus
             classwise_collapse[y] = len(class_unique_bmus)
@@ -504,6 +506,22 @@ class SOM(object):
                 non_bmu_positions.remove(bmu_position)
             except ValueError:
                 pass
+        mindiff = sys.maxsize
+        reference_histogram = np.array([1/num_classes for i in list(range(num_classes))])
+        histograms = []
+        worst_histogram = []
+        for neuron, class_list in all_neurons.items():
+            if class_list == []:
+                continue
+            class_occurrence_histogram, _ = np.histogram(class_list, bins=list(range(num_classes+1)), density=True)
+            histograms.append(class_occurrence_histogram)
+            diff = np.linalg.norm(class_occurrence_histogram - reference_histogram)
+            if diff < mindiff:
+                mindiff = diff
+                worst_histogram = class_occurrence_histogram
+        print('Worst histogram: {}'.format(worst_histogram))
+        print('Mean histogram: {}'.format(np.mean(histograms, axis=0)))
+        print('Mean overlap: {}'.format(np.mean(histograms)))
         print('Non-BMU neurons: {}, ratio over the neurons {}'.format(len(non_bmu_positions), len(non_bmu_positions)/(self._m * self._n)))
         print('Per-class unique BMUs: {}'.format(classwise_collapse))
         print('If there was no class overlap, the non-BMU neurons would be {}'.format(self._m * self._n - sum(classwise_collapse)))
