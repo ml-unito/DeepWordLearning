@@ -44,7 +44,7 @@ class SOM(object):
 
 
     def __init__(self, m, n, dim, n_iterations=50, alpha=None, sigma=None,
-                 tau=0.5, threshold=0.6, batch_size=500, num_classes=10,
+                 tau=0.5, threshold=0.6, batch_size=500, num_classes=100,
                  checkpoint_loc = None, data='audio'):
         """
         Initializes all necessary components of the TensorFlow
@@ -84,6 +84,11 @@ class SOM(object):
         self.data = data
 
         self.logs_path = Constants.DATA_FOLDER + '/tblogs/' + self.get_experiment_name()
+
+        self.num_classes = num_classes
+
+        # helper structure
+        self.neuron_loc_list = list([tuple(loc) for loc in self._neuron_locations(self._m, self._n)])
 
         if not os.path.exists(self.logs_path):
             os.makedirs(self.logs_path)
@@ -136,6 +141,8 @@ class SOM(object):
             self._avg_delta = tf.placeholder("float")
             self._train_quant_error = tf.placeholder("float")
             self._test_quant_error = tf.placeholder("float")
+            self._train_confusion = tf.placeholder("float")
+            self._test_confusion = tf.placeholder("float")
 
             ##SUMMARIES
             train_mean, train_std = tf.nn.moments(self._train_compactness, axes=[0])
@@ -151,8 +158,10 @@ class SOM(object):
             tf.summary.scalar("Train Var Convergence", self._train_var_convergence)
             tf.summary.scalar("Test Var Convergence", self._test_var_convergence)
             tf.summary.scalar("Average Delta", self._avg_delta)
-            #tf.summary.scalar("Train Quantization Error", self._train_quant_error)
-            #tf.summary.scalar("Test Quantization Error", self._test_quant_error)
+            tf.summary.scalar("Train Quantization Error", self._train_quant_error)
+            tf.summary.scalar("Test Quantization Error", self._test_quant_error)
+            tf.summary.scalar("Train Confusion", self._train_confusion)
+            tf.summary.scalar("Test Confusion", self._test_confusion)
 
             # will be set when computing the class compactness for the first time
             self.train_inter_class_distance = None
@@ -297,13 +306,14 @@ class SOM(object):
                     if input_classes is not None:
                         train_comp = old_train_comp
                         if iter_no % save_every == 0:
-                            train_comp = self.class_compactness(input_vects, input_classes)
+                            train_comp, train_confusion = self.class_compactness(input_vects, input_classes)
                             print('Train compactness: {}'.format(np.mean(train_comp)))
+                            print('Train confusion: {}'.format(train_confusion))
                             old_train_comp = train_comp
                         train_mean_conv, train_var_conv, train_conv = self.population_based_convergence(input_vects)
                         print('train: mean {} var {} tot {}'.format(train_mean_conv, train_var_conv, train_conv))
-                        #train_quant_error = self.quantization_error(input_vects)
-                        train_quant_error = [0]
+                        train_quant_error = self.quantization_error(input_vects)
+                        #train_quant_error = [0]
                         #print(train_conv)
                     else:
                         train_comp = [0]
@@ -311,13 +321,13 @@ class SOM(object):
                     if test_classes is not None:
                         test_comp = old_test_comp
                         if iter_no % save_every == 0:
-                            test_comp = self.class_compactness(test_vects, test_classes, train=False)
+                            test_comp, test_confusion = self.class_compactness(test_vects, test_classes, train=False)
                             print('Test compactness: {}'.format(np.mean(test_comp)))
+                            print('Test confusion: {}'.format(test_confusion))
                             old_test_comp = test_comp
                         test_mean_conv, test_var_conv, test_conv = self.population_based_convergence(test_vects)
-                        print('test: mean {} var {} tot {}'.format(test_mean_conv, test_var_conv, test_conv))
-                        #test_quant_error = self.quantization_error(test_vects)
-                        test_quant_error = [0]
+                        test_quant_error = self.quantization_error(test_vects)
+                        #test_quant_error = [0]
                         #print(test_conv)
                     else:
                         test_comp = [0]
@@ -332,8 +342,10 @@ class SOM(object):
                                                         self._train_var_convergence: train_var_conv,
                                                         self._test_var_convergence: test_var_conv,
                                                         self._avg_delta: avg_delta,
-                                                        #self._train_quant_error: train_quant_error,
-                                                        #self._test_quant_error: test_quant_error
+                                                        self._train_confusion: train_confusion,
+                                                        self._test_confusion: test_confusion,
+                                                        self._train_quant_error: train_quant_error,
+                                                        self._test_quant_error: test_quant_error
                                                         })
                     summary_writer.add_summary(summary, global_step=iter_no)
 
@@ -451,6 +463,27 @@ class SOM(object):
             result.append(bmu_loc)
         return result
 
+    def map_vects_confusion(self, input_vects, ys):
+        result = []
+        collapse_dict = {neuron_loc: [] for neuron_loc in self.neuron_loc_list}
+        for index, x in enumerate(input_vects):
+            _, bmu_loc = self.get_BMU_mine(x)
+            collapse_dict[tuple(bmu_loc)].append(ys[index])
+            result.append(bmu_loc)
+        print(collapse_dict)
+        bmu_confusion = 0
+        real_bmu_counter = 0
+        for bmu_loc, class_list in collapse_dict.items():
+            if class_list == []:
+                continue
+            bmu_confusion += len(set(class_list))
+            real_bmu_counter += 1
+        bmu_confusion /= real_bmu_counter
+        bmu_confusion /= self.num_classes
+        return result, bmu_confusion
+
+
+
     def detect_superpositions(self, l):
         for l_i in l:
             if len(l_i) > 1:
@@ -477,8 +510,7 @@ class SOM(object):
                .format(len(set(bmu_positions)), ratio_examples, ratio_neurons))
         return ratio_examples, ratio_neurons
 
-    def neuron_collapse_classwise(self, input_vects, ys, bmu_positions=None,
-                                  num_classes=100):
+    def neuron_collapse_classwise(self, input_vects, ys, bmu_positions=None,):
         if bmu_positions == None:
             bmu_positions = self.map_vects_memory_aware(input_vects)
         bmu_positions = [tuple(bmu_pos) for bmu_pos in bmu_positions]
@@ -507,13 +539,13 @@ class SOM(object):
             except ValueError:
                 pass
         mindiff = sys.maxsize
-        reference_histogram = np.array([1/num_classes for i in list(range(num_classes))])
+        reference_histogram = np.array([1/self.num_classes for i in list(range(self.num_classes))])
         histograms = []
         worst_histogram = []
         for neuron, class_list in all_neurons.items():
             if class_list == []:
                 continue
-            class_occurrence_histogram, _ = np.histogram(class_list, bins=list(range(num_classes+1)), density=True)
+            class_occurrence_histogram, _ = np.histogram(class_list, bins=list(range(self.num_classes+1)), density=True)
             histograms.append(class_occurrence_histogram)
             diff = np.linalg.norm(class_occurrence_histogram - reference_histogram)
             if diff < mindiff:
@@ -525,7 +557,7 @@ class SOM(object):
         print('Non-BMU neurons: {}, ratio over the neurons {}'.format(len(non_bmu_positions), len(non_bmu_positions)/(self._m * self._n)))
         print('Per-class unique BMUs: {}'.format(classwise_collapse))
         print('If there was no class overlap, the non-BMU neurons would be {}'.format(self._m * self._n - sum(classwise_collapse)))
-        print('Non-Overlap index: {}'.format((self._m * self._n - sum(classwise_collapse)) / len(non_bmu_positions)))
+        print('Overlap index: {}'.format(1 - (self._m * self._n - sum(classwise_collapse)) / len(non_bmu_positions)))
         print('Average BMUs for each class: {}'.format(np.mean(classwise_collapse)))
         print('Average ratio over the examples: {}'.format(np.mean(classwise_collapse)/len(input_vects)))
         print('Average ratio over the neurons: {}'.format(np.mean(classwise_collapse)/(self._m * self._n)))
@@ -589,8 +621,9 @@ class SOM(object):
 
     @profile
     def class_compactness(self, xs, ys, train=True, strategy='memory-aware'):
+        confusion = 0
         if strategy == 'memory-aware':
-            bmu_positions = self.map_vects_memory_aware(xs)
+            bmu_positions, confusion = self.map_vects_confusion(xs, ys)
         elif strategy == 'parallel':
             bmu_positions = self.map_vects_parallel(xs)
         else:
@@ -628,7 +661,7 @@ class SOM(object):
             class_comp = intra_class_distance/self.train_inter_class_distance
         else:
             class_comp = intra_class_distance/self.test_inter_class_distance
-        return class_comp
+        return class_comp, confusion
 
     @profile
     def population_based_convergence(self, xs, alpha=0.05):

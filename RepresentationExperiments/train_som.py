@@ -33,6 +33,8 @@ if __name__ == '__main__':
                         help='Number of neurons for audio SOM, second dimension')
     parser.add_argument('--epochs', type=int, default=10000,
                         help='Number of epochs the SOM will be trained for')
+    parser.add_argument('--classes', type=int, default=100,
+                        help='Number of classes the model will be trained on')
     parser.add_argument('--subsample', action='store_true', default=False)
     parser.add_argument('--data', metavar='data', type=str, default='audio')
     parser.add_argument('--rotation', action='store_true', default=False)
@@ -52,7 +54,8 @@ if __name__ == '__main__':
     dim = len(xs[0])
 
     som = SOM(args.neurons1, args.neurons2, dim, n_iterations=args.epochs, alpha=args.alpha,
-                 tau=0.1, threshold=0.6, batch_size=args.batch, data=args.data, sigma=args.sigma)
+                 tau=0.1, threshold=0.6, batch_size=args.batch, data=args.data, sigma=args.sigma,
+                 num_classes=args.classes)
 
     ys = np.array(ys)
     xs = np.array(xs)

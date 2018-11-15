@@ -61,4 +61,6 @@ if __name__ == '__main__':
 
     som.restore_trained(args.path)
 
-    som.print_som_evaluation(xs_val, ys_val)
+    #som.print_som_evaluation(xs_val, ys_val)
+    _, conf = som.map_vects_confusion(xs_val, ys_val)
+    print(conf)
