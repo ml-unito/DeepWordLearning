@@ -310,9 +310,8 @@ class SOM(object):
                             print('Train compactness: {}'.format(np.mean(train_comp)))
                             print('Train confusion: {}'.format(train_confusion))
                             old_train_comp = train_comp
-                        train_mean_conv, train_var_conv, train_conv = self.population_based_convergence(input_vects)
-                        print('train: mean {} var {} tot {}'.format(train_mean_conv, train_var_conv, train_conv))
-                        train_quant_error = self.quantization_error(input_vects)
+                            train_mean_conv, train_var_conv, train_conv = self.population_based_convergence(input_vects)
+                            train_quant_error = self.quantization_error(input_vects)
                         #train_quant_error = [0]
                         #print(train_conv)
                     else:
@@ -325,8 +324,8 @@ class SOM(object):
                             print('Test compactness: {}'.format(np.mean(test_comp)))
                             print('Test confusion: {}'.format(test_confusion))
                             old_test_comp = test_comp
-                        test_mean_conv, test_var_conv, test_conv = self.population_based_convergence(test_vects)
-                        test_quant_error = self.quantization_error(test_vects)
+                            test_mean_conv, test_var_conv, test_conv = self.population_based_convergence(test_vects)
+                            test_quant_error = self.quantization_error(test_vects)
                         #test_quant_error = [0]
                         #print(test_conv)
                     else:
@@ -470,7 +469,6 @@ class SOM(object):
             _, bmu_loc = self.get_BMU_mine(x)
             collapse_dict[tuple(bmu_loc)].append(ys[index])
             result.append(bmu_loc)
-        print(collapse_dict)
         bmu_confusion = 0
         real_bmu_counter = 0
         for bmu_loc, class_list in collapse_dict.items():
@@ -621,9 +619,9 @@ class SOM(object):
 
     @profile
     def class_compactness(self, xs, ys, train=True, strategy='memory-aware'):
-        confusion = 0
+        confusion = [0]
         if strategy == 'memory-aware':
-            bmu_positions, confusion = self.map_vects_confusion(xs, ys)
+            bmu_positions, confusion = self.map_vects_collapse(xs, ys)
         elif strategy == 'parallel':
             bmu_positions = self.map_vects_parallel(xs)
         else:
