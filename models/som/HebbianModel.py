@@ -315,6 +315,8 @@ class HebbianModel(object):
             bmu_class_dict = target_som.train_bmu_class_dict
         else:
             bmu_class_dict = target_som.test_bmu_class_dict
+        print('bmu class dict:')
+        print(bmu_class_dict)
         source_activation, pos_source_activation = source_som.get_activations(x)
         source_activation = np.array(source_activation).reshape((-1, 1))
         target_activation = self.propagate_activation(source_activation, source_som=source)
