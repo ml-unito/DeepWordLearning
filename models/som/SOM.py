@@ -90,6 +90,9 @@ class SOM(object):
         # helper structure
         self.neuron_loc_list = list([tuple(loc) for loc in self._neuron_locations(self._m, self._n)])
 
+        self.train_bmu_class_dict = None
+        self.test_bmu_class_dict = None
+
         if not os.path.exists(self.logs_path):
             os.makedirs(self.logs_path)
 
@@ -571,31 +574,37 @@ class SOM(object):
 #        return superpositions
 
     def memorize_examples_by_class(self, xs, ys):
-        self.bmu_class_dict = {i : [] for i in range(self._n * self._m)}
+        bmu_class_dict = {i : [] for i in range(self._n * self._m)}
         result = []
         superpositions = False
         for i, (x, yi) in enumerate(zip(xs, ys)):
             bmu_index, bmu_loc = self.get_BMU_mine(x)
             result.append(bmu_index)
             if superpositions == False:
-                if len(self.bmu_class_dict[bmu_index]) > 0 and yi not in self.bmu_class_dict[bmu_index]:
+                if len(bmu_class_dict[bmu_index]) > 0 and yi not in bmu_class_dict[bmu_index]:
                     superpositions = True
-            self.bmu_class_dict[bmu_index].append(yi)
+            bmu_class_dict[bmu_index].append(yi)
+        if train:
+            self.train_bmu_class_dict = bmu_class_dict
+        else:
+            self.test_bmu_class_dict = bmu_class_dict
         return superpositions
 
 
 
 
-    def get_activations(self, input_vect, normalize=True, threshold=True, mode='exp',
-                        tau=0.6, threshold=0.6):
+    def get_activations(self, input_vect, normalize=True, threshold=True, mode='exp'):
+      # get activations for the word learning
+
       # Quantization error:
       activations = list()
       pos_activations = list()
       for i in range(len(self._weightages)):
           d = np.array([])
+
           d = (np.absolute(input_vect-self._weightages[i])).tolist()
           if mode == 'exp':
-              activations.append(math.exp(-(np.sum(d)/len(d))/tau))
+              activations.append(math.exp(-(np.sum(d)/len(d))/self.tau))
           if mode == 'linear':
               activations.append(1/np.sum(d))
           pos_activations.append(self._locations[i])
@@ -605,7 +614,7 @@ class SOM(object):
           min_ = min(activations)
           activations = (activations - min_) / float(max_ - min_)
       if threshold:
-          idx = activations < threshold
+          idx = activations < self.threshold
           activations[idx] = 0
       return [activations,pos_activations]
 

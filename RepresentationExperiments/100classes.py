@@ -115,13 +115,25 @@ if __name__ == '__main__':
         a_xs_fold, v_xs_fold, a_ys_fold, v_ys_fold = create_folds(a_xs_train, v_xs_train, a_ys_train, v_ys_train, n_folds=n)
         print('Training...')
         hebbian_model.train(a_xs_fold, v_xs_fold)
-        print('Memorizing...')
+        print('Memorizing...')'
         # prepare the soms for alternative matching strategies - this is not necessary
         # if prediction_alg='regular' in hebbian_model.evaluate(...) below
         if args.algo != 'regular':
-            som_a.memorize_examples_by_class(a_xs_train, a_ys_train)
-            som_v.memorize_examples_by_class(v_xs_train, v_ys_train)
-        print('Evaluating...')
+            if som_a.train_bmu_class_dict == None:
+                som_a.memorize_examples_by_class(a_xs_train, a_ys_train)
+            if som_v.train_bmu_class_dict == None:
+                som_v.memorize_examples_by_class(v_xs_train, v_ys_train)
+            if som_a.test_bmu_class_dict == None:
+                som_a.memorize_examples_by_class(a_xs_train, a_ys_train, train=False)
+            if som_v.test_bmu_class_dict == None:
+                som_v.memorize_examples_by_class(v_xs_train, v_ys_train, train=False)
+        print('Evaluating Train Set...')
+        accuracy_a = hebbian_model.evaluate(a_xs_train, v_xs_train, a_ys_train, v_ys_train, source='a',
+                                          prediction_alg=args.algo)
+        accuracy_v = hebbian_model.evaluate(a_xs_train, v_xs_train, a_ys_train, v_ys_train, source='v',
+                                          prediction_alg=args.algo)
+        print('Training set: n={}, accuracy_a={}, accuracy_v={}'.format(n, accuracy_a, accuracy_v))
+        print('Evaluating Val Set...')
         accuracy_a = hebbian_model.evaluate(a_xs_val, v_xs_val, a_ys_val, v_ys_val, source='a',
                                           prediction_alg=args.algo)
         accuracy_v = hebbian_model.evaluate(a_xs_val, v_xs_val, a_ys_val, v_ys_val, source='v',

@@ -160,7 +160,7 @@ class HebbianModel(object):
         target_bmu_index = np.argmax(target_activation)
         return source_bmu_index, target_bmu_index
 
-    def evaluate(self, X_a, X_v, y_a, y_v, source='v', img_path=None, prediction_alg='regular'):
+    def evaluate(self, X_a, X_v, y_a, y_v, source='v', img_path=None, prediction_alg='regular', k=4):
         if source == 'v':
             X_source = X_v
             X_target = X_a
@@ -185,9 +185,9 @@ class HebbianModel(object):
             if prediction_alg == 'regular':
                 yi_pred = self.make_prediction(x, y, source_som, target_som, X_target, y_target, source)
             elif prediction_alg == 'knn':
-                yi_pred = self.make_prediction_knn(x, y, 4, source_som, target_som, source)
+                yi_pred = self.make_prediction_knn(x, y, k, source_som, target_som, source)
             elif prediction_alg == 'knn2':
-                yi_pred = self.make_prediction_knn_weighted(x, y, 4, source_som, target_som, source)
+                yi_pred = self.make_prediction_knn_weighted(x, y, k, source_som, target_som, source)
             elif prediction_alg == 'sorted':
                 yi_pred = self.make_prediction_sort(x, source_som, target_som, source)
             else:
@@ -298,7 +298,6 @@ class HebbianModel(object):
             bmu_class_list = target_som.bmu_class_dict[closest_indexes[i]]
             if bmu_class_list != []:
                 class_count[bmu_class_list[0]] += 1
-        print(class_count)
         return np.argmax(class_count)
 
     def make_prediction_knn_weighted(self, x, y, k, source_som, target_som, source,
