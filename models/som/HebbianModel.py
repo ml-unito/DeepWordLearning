@@ -326,11 +326,11 @@ class HebbianModel(object):
         # perform a weighted majority vote
         class_count = [0 for i in set([c[0] for c in target_som.bmu_class_dict.values() if c != []])]
         for i in range(len(closest_indexes)):
-            print(closest_indexes[i])
+            #print(closest_indexes[i])
             bmu_class_list = target_som.bmu_class_dict[closest_indexes[i]]
             if bmu_class_list != []:
                 class_count[bmu_class_list[0]] += 1 * vote_weights[closest_indexes[i]]
-        print(class_count)
+        #print(class_count)
         return np.argmax(class_count)
 
     def make_prediction_sort(self, x, source_som, target_som, source):
