@@ -30,6 +30,7 @@ from scipy.stats import f as fisher_f
 from scipy.stats import norm
 from profilehooks import profile
 import time
+import bisect
 
 
 
@@ -146,6 +147,10 @@ class SOM(object):
             self._test_quant_error = tf.placeholder("float")
             self._train_confusion = tf.placeholder("float")
             self._test_confusion = tf.placeholder("float")
+            self._train_usage_rate = tf.placeholder("float")
+            self._test_usage_rate = tf.placeholder("float")
+            self._train_worst_confusion = tf.placeholder("float")
+            self._test_worst_confusion = tf.placeholder("float")
 
             ##SUMMARIES
             train_mean, train_std = tf.nn.moments(self._train_compactness, axes=[0])
@@ -165,6 +170,10 @@ class SOM(object):
             tf.summary.scalar("Test Quantization Error", self._test_quant_error)
             tf.summary.scalar("Train Confusion", self._train_confusion)
             tf.summary.scalar("Test Confusion", self._test_confusion)
+            tf.summary.scalar("Train Worst Confusion", self._train_worst_confusion)
+            tf.summary.scalar("Test Worst Confusion", self._test_worst_confusion)
+            tf.summary.scalar("Train BMU Usage Rate", self._train_usage_rate)
+            tf.summary.scalar("Test BMU Usage Rate", self._test_usage_rate)
 
             # will be set when computing the class compactness for the first time
             self.train_inter_class_distance = None
@@ -309,7 +318,7 @@ class SOM(object):
                     #Run summaries
                         if input_classes is not None:
                             train_comp = old_train_comp
-                            train_comp, train_confusion = self.class_compactness(input_vects, input_classes)
+                            train_comp, train_confusion, train_worst_confusion, train_usage_rate = self.compactness_stats(input_vects, input_classes)
                             print('Train compactness: {}'.format(np.mean(train_comp)))
                             print('Train confusion: {}'.format(train_confusion))
                             old_train_comp = train_comp
@@ -322,7 +331,7 @@ class SOM(object):
                             train_conv = [0]
                         if test_classes is not None:
                             test_comp = old_test_comp
-                            test_comp, test_confusion = self.class_compactness(test_vects, test_classes, train=False)
+                            test_comp, test_confusion, test_worst_confusion, test_usage_rate = self.compactness_stats(test_vects, test_classes, train=False)
                             print('Test compactness: {}'.format(np.mean(test_comp)))
                             print('Test confusion: {}'.format(test_confusion))
                             old_test_comp = test_comp
@@ -346,7 +355,11 @@ class SOM(object):
                                                             self._train_confusion: train_confusion,
                                                             self._test_confusion: test_confusion,
                                                             self._train_quant_error: train_quant_error,
-                                                            self._test_quant_error: test_quant_error
+                                                            self._test_quant_error: test_quant_error,
+                                                            self._train_usage_rate: train_usage_rate,
+                                                            self._test_usage_rate: test_usage_rate,
+                                                            self._train_worst_confusion: train_worst_confusion,
+                                                            self._test_worst_confusion: test_worst_confusion
                                                             })
                         summary_writer.add_summary(summary, global_step=iter_no)
 
@@ -482,6 +495,31 @@ class SOM(object):
         bmu_confusion /= self.num_classes
         return result, bmu_confusion
 
+    def map_vects_get_confusion_stats(self, input_vects, ys):
+        result = []
+        collapse_dict = {neuron_loc: [] for neuron_loc in self.neuron_loc_list}
+        worst_offenders = [0 for i in range(1)]
+        for index, x in enumerate(input_vects):
+            _, bmu_loc = self.get_BMU_mine(x)
+            collapse_dict[tuple(bmu_loc)].append(ys[index])
+            result.append(bmu_loc)
+        bmu_confusion = 0
+        real_bmu_counter = 0
+        for bmu_loc, class_list in collapse_dict.items():
+            if class_list == []:
+                continue
+            num_classes = len(set(class_list))
+            bmu_confusion += num_classes
+            if num_classes > worst_offenders[0]:
+                bisect.insort(worst_offenders, num_classes)
+                if len(worst_offenders) >= (self._m * self._n / 20):
+                    worst_offenders = worst_offenders[1:]
+            real_bmu_counter += 1
+        bmu_confusion /= real_bmu_counter
+        bmu_confusion /= self.num_classes
+        bmu_usage_rate = real_bmu_counter / (self._m * self._n)
+        bmu_confusion_worst = np.mean(worst_offenders)
+        return result, bmu_confusion, bmu_confusion_worst, bmu_usage_rate
 
 
     def detect_superpositions(self, l):
@@ -493,7 +531,7 @@ class SOM(object):
 
     def print_som_evaluation(self, input_vects, ys):
         bmu_positions = self.map_vects_memory_aware(input_vects)
-        class_comp = self.class_compactness(input_vects, ys, train=False)
+        class_comp = self.compactness_stats(input_vects, ys, train=False)
         _, confusion = self.map_vects_confusion(input_vects, ys)
         print('Average Compactness: {}'.format(np.mean(class_comp)))
         print('Compactness Variance: {}'.format(np.var(class_comp)))
@@ -593,7 +631,8 @@ class SOM(object):
 
 
 
-    def get_activations(self, input_vect, normalize=True, threshold=True, mode='exp'):
+    def get_activations(self, input_vect, normalize=True, threshold=0.6, mode='exp',
+                        tau=0.6):
       # get activations for the word learning
 
       # Quantization error:
@@ -601,10 +640,9 @@ class SOM(object):
       pos_activations = list()
       for i in range(len(self._weightages)):
           d = np.array([])
-
           d = (np.absolute(input_vect-self._weightages[i])).tolist()
           if mode == 'exp':
-              activations.append(math.exp(-(np.sum(d)/len(d))/self.tau))
+              activations.append(math.exp(-(np.sum(d)/len(d))/tau))
           if mode == 'linear':
               activations.append(1/np.sum(d))
           pos_activations.append(self._locations[i])
@@ -613,9 +651,8 @@ class SOM(object):
           max_ = max(activations)
           min_ = min(activations)
           activations = (activations - min_) / float(max_ - min_)
-      if threshold:
-          idx = activations < self.threshold
-          activations[idx] = 0
+      idx = activations < threshold
+      activations[idx] = 0
       return [activations,pos_activations]
 
 
@@ -639,10 +676,10 @@ class SOM(object):
         plt.savefig(os.path.join(Constants.PLOT_FOLDER, plot_name))
 
     @profile
-    def class_compactness(self, xs, ys, train=True, strategy='memory-aware'):
+    def compactness_stats(self, xs, ys, train=True, strategy='memory-aware'):
         confusion = [0]
         if strategy == 'memory-aware':
-            bmu_positions, confusion = self.map_vects_confusion(xs, ys)
+            bmu_positions, confusion, worst_confusion, usage_rate = self.map_vects_get_confusion_stats(xs, ys)
         elif strategy == 'parallel':
             bmu_positions = self.map_vects_parallel(xs)
         else:
@@ -680,7 +717,7 @@ class SOM(object):
             class_comp = intra_class_distance/self.train_inter_class_distance
         else:
             class_comp = intra_class_distance/self.test_inter_class_distance
-        return class_comp, confusion
+        return class_comp, confusion, worst_confusion, usage_rate
 
     @profile
     def population_based_convergence(self, xs, alpha=0.05):

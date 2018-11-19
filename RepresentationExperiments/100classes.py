@@ -142,7 +142,6 @@ if __name__ == '__main__':
         acc_a_list.append(accuracy_a)
         acc_v_list.append(accuracy_v)
         # make a plot - placeholder
-        hebbian_model.make_plot(a_xs_test[0], v_xs_test[0], v_ys_test[0], v_xs_fold[0], source='a')
     plt.plot(acc_a_list, color='teal')
     plt.plot(acc_v_list, color='orange')
     plt.savefig('./plots/'+exp_description+'.pdf', transparent=True)

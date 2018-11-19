@@ -15,7 +15,8 @@ class HebbianModel(object):
 
     def __init__(self, som_a, som_v, a_dim, v_dim, learning_rate=10,
                  n_presentations=1, n_classes=10, threshold=.6,
-                 checkpoint_dir=None):
+                 checkpoint_dir=None, a_threshold=.6, v_threshold=.6,
+                 a_tau=.6, v_tau=.6):
         assert som_a._m == som_v._m and som_a._n == som_v._n
         self.num_neurons = som_a._m * som_a._n
         self._graph = tf.Graph()
@@ -29,6 +30,10 @@ class HebbianModel(object):
         self.learning_rate = learning_rate
         self.threshold = threshold
         self._trained = False
+        self.a_threshold = a_threshold
+        self.v_threshold = v_threshold
+        self.a_tau = a_tau
+        self.v_tau = v_tau
 
         with self._graph.as_default():
             self.weights = tf.Variable(
@@ -349,6 +354,13 @@ class HebbianModel(object):
             if bmu_class_list != []:
                 class_count[bmu_class_list[0]] += 1 * vote_weights[closest_indexes[i]]
         #print(class_count)
+
+        class_count = [0 for i in range(source_som.num_classes)]
+        for i in range(len(closest_indexes)):
+            bmu_class_list = bmu_class_dict[closest_indexes[i]]
+            for c in bmu_class_list:
+                class_count[c] += 1 * vote_weights[closest_indexes[i]]
+
         return np.argmax(class_count)
 
     def make_prediction_sort(self, x, source_som, target_som, source):
