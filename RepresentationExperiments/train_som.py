@@ -55,7 +55,7 @@ if __name__ == '__main__':
 
     som = SOM(args.neurons1, args.neurons2, dim, n_iterations=args.epochs, alpha=args.alpha,
                  tau=0.1, threshold=0.6, batch_size=args.batch, data=args.data, sigma=args.sigma,
-                 num_classes=args.classes)
+                 num_classes=args.classes, sigma_decay='constant')
 
     ys = np.array(ys)
     xs = np.array(xs)

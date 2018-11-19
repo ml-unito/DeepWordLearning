@@ -46,7 +46,8 @@ class SOM(object):
 
     def __init__(self, m, n, dim, n_iterations=50, alpha=None, sigma=None,
                  tau=0.5, threshold=0.6, batch_size=500, num_classes=100,
-                 checkpoint_loc = None, data='audio'):
+                 checkpoint_loc = None, data='audio', sigma_decay='time',
+                 lr_decay='time'):
         """
         Initializes all necessary components of the TensorFlow
         Graph.
@@ -196,8 +197,14 @@ class SOM(object):
             #To compute the alpha and sigma values based on iteration
             #number
             learning_rate = 1.0 - tf.div(self._iter_input, tf.cast(self._n_iterations, "float"))
-            _alpha_op = self.alpha * learning_rate
-            _sigma_op = self.sigma * learning_rate
+            if sigma_decay == 'constant':
+                _sigma_op = self.sigma
+            else:
+                _sigma_op = self.alpha * learning_rate
+            if lr_decay == 'constant':
+                _alpha_op = self.alpha
+            else:
+                _alpha_op = self.alpha * learning_rate
 
             #Construct the op that will generate a vector with learning
             #rates for all neurons, based on iteration number and location
@@ -518,7 +525,7 @@ class SOM(object):
         bmu_confusion /= real_bmu_counter
         bmu_confusion /= self.num_classes
         bmu_usage_rate = real_bmu_counter / (self._m * self._n)
-        bmu_confusion_worst = np.mean(worst_offenders)
+        bmu_confusion_worst = np.mean(worst_offenders) / num_classes
         return result, bmu_confusion, bmu_confusion_worst, bmu_usage_rate
 
 
