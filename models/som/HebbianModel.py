@@ -302,14 +302,14 @@ class HebbianModel(object):
         closest_activations, closest_indexes = self.get_bmu_k_closest(target_som, target_activation,
                                                                       pos_activations, k, train=train)
         # perform a simple majority vote
-        class_count = [0 for i in set([c[0] for c in bmu_class_dict.values() if c != []])]
-        for i in range(len(closest_indexes)):
-            bmu_class_list = bmu_class_dict[closest_indexes[i]]
-            if bmu_class_list != []:
-                class_count[bmu_class_list[0]] += 1
+        #class_count = [0 for i in set([c[0] for c in bmu_class_dict.values() if c != []])]
+        #for i in range(len(closest_indexes)):
+        #    bmu_class_list = bmu_class_dict[closest_indexes[i]]
+        #    if bmu_class_list != []:
+        #        class_count[bmu_class_list[0]] += 1
 
         class_count = [0 for i in range(source_som.num_classes)]
-        for i in range(len(closes_indexes)):
+        for i in range(len(closest_indexes)):
             bmu_class_list = bmu_class_dict[closest_indexes[i]]
             for class in bmu_class_list:
                 class_count[class] += 1
@@ -321,8 +321,6 @@ class HebbianModel(object):
             bmu_class_dict = target_som.train_bmu_class_dict
         else:
             bmu_class_dict = target_som.test_bmu_class_dict
-        print('bmu class dict:')
-        print(bmu_class_dict)
         source_activation, pos_source_activation = source_som.get_activations(x)
         source_activation = np.array(source_activation).reshape((-1, 1))
         target_activation = self.propagate_activation(source_activation, source_som=source)
