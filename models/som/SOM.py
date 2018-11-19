@@ -573,7 +573,7 @@ class SOM(object):
 #        print('More than a class mapped to a neuron: '+ str(superpositions))
 #        return superpositions
 
-    def memorize_examples_by_class(self, xs, ys):
+    def memorize_examples_by_class(self, xs, ys, train=True):
         bmu_class_dict = {i : [] for i in range(self._n * self._m)}
         result = []
         superpositions = False

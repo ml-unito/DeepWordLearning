@@ -115,7 +115,7 @@ if __name__ == '__main__':
         a_xs_fold, v_xs_fold, a_ys_fold, v_ys_fold = create_folds(a_xs_train, v_xs_train, a_ys_train, v_ys_train, n_folds=n)
         print('Training...')
         hebbian_model.train(a_xs_fold, v_xs_fold)
-        print('Memorizing...')'
+        print('Memorizing...')
         # prepare the soms for alternative matching strategies - this is not necessary
         # if prediction_alg='regular' in hebbian_model.evaluate(...) below
         if args.algo != 'regular':
@@ -132,7 +132,7 @@ if __name__ == '__main__':
                                           prediction_alg=args.algo)
         accuracy_v = hebbian_model.evaluate(a_xs_train, v_xs_train, a_ys_train, v_ys_train, source='v',
                                           prediction_alg=args.algo)
-        print('Training set: n={}, accuracy_a={}, accuracy_v={}'.format(n, accuracy_a, accuracy_v))
+        print('Training set: n={}, accuracy_a={}, accuracy_v={}'.format(n, a4ccuracy_a, accuracy_v))
         print('Evaluating Val Set...')
         accuracy_a = hebbian_model.evaluate(a_xs_val, v_xs_val, a_ys_val, v_ys_val, source='a',
                                           prediction_alg=args.algo)
