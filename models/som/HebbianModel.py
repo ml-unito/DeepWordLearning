@@ -160,7 +160,8 @@ class HebbianModel(object):
         target_bmu_index = np.argmax(target_activation)
         return source_bmu_index, target_bmu_index
 
-    def evaluate(self, X_a, X_v, y_a, y_v, source='v', img_path=None, prediction_alg='regular', k=4):
+    def evaluate(self, X_a, X_v, y_a, y_v, source='v', img_path=None, prediction_alg='regular', k=4,
+                 train=True):
         if source == 'v':
             X_source = X_v
             X_target = X_a
@@ -185,9 +186,9 @@ class HebbianModel(object):
             if prediction_alg == 'regular':
                 yi_pred = self.make_prediction(x, y, source_som, target_som, X_target, y_target, source)
             elif prediction_alg == 'knn':
-                yi_pred = self.make_prediction_knn(x, y, k, source_som, target_som, source)
+                yi_pred = self.make_prediction_knn(x, y, k, source_som, target_som, source, train=train)
             elif prediction_alg == 'knn2':
-                yi_pred = self.make_prediction_knn_weighted(x, y, k, source_som, target_som, source)
+                yi_pred = self.make_prediction_knn_weighted(x, y, k, source_som, target_som, source, train=train)
             elif prediction_alg == 'sorted':
                 yi_pred = self.make_prediction_sort(x, source_som, target_som, source)
             else:
@@ -264,12 +265,16 @@ class HebbianModel(object):
         plt.savefig(os.path.join(Constants.PLOT_FOLDER, filename))
         plt.clf()
 
-    def get_bmu_k_closest(self, som, activations, pos_activations, k):
+    def get_bmu_k_closest(self, som, activations, pos_activations, k, train=True):
         '''
         Returns two lists containing respectively the level of activation
         and positions for the BMU and its closest k units. The length of these
         lists is therefore k+1, with the BMU information in the first position.
         '''
+        if train:
+            bmu_class_dict = som.train_bmu_class_dict
+        else:
+            bmu_class_dict = som.test_bmu_class_dict
         bmu_index = np.argmax(activations)
         bmu_position = pos_activations[bmu_index]
         distances_from_bmu = [np.linalg.norm(bmu_position - unit_position) for unit_position in pos_activations]
@@ -278,30 +283,38 @@ class HebbianModel(object):
         sorted_activations = list(map(activations.__getitem__, sorted_indexes))
         sorted_positions = list(map(pos_activations.__getitem__, sorted_indexes))
         sorted_tuple = [(act, index) for act, index in zip(sorted_activations, sorted_indexes)
-                          if som.bmu_class_dict[index] != []]
+                          if bmu_class_dict[index] != []]
         sorted_activations = list(zip(*sorted_tuple))[0]
         sorted_indexes = list(zip(*sorted_tuple))[1]
         return sorted_activations[:k+1], sorted_indexes[:k+1]
 
 
-    def make_prediction_knn(self, x, y, k, source_som, target_som, source):
+    def make_prediction_knn(self, x, y, k, source_som, target_som, source, train=True):
+        if train:
+            bmu_class_dict = target_som.train_bmu_class_dict
+        else:
+            bmu_class_dict = target_som.test_bmu_class_dict
         source_activation, pos_source_activation = source_som.get_activations(x)
         source_activation = np.array(source_activation).reshape((-1, 1))
         target_activation = self.propagate_activation(source_activation, source_som=source)
         hebbian_bmu_index = np.argmax(target_activation)
         pos_activations = list(target_som._neuron_locations(target_som._m, target_som._n))
         closest_activations, closest_indexes = self.get_bmu_k_closest(target_som, target_activation,
-                                                                      pos_activations, k)
+                                                                      pos_activations, k, train=train)
         # perform a simple majority vote
-        class_count = [0 for i in set([c[0] for c in target_som.bmu_class_dict.values() if c != []])]
+        class_count = [0 for i in set([c[0] for c in bmu_class_dict.values() if c != []])]
         for i in range(len(closest_indexes)):
-            bmu_class_list = target_som.bmu_class_dict[closest_indexes[i]]
+            bmu_class_list = bmu_class_dict[closest_indexes[i]]
             if bmu_class_list != []:
                 class_count[bmu_class_list[0]] += 1
         return np.argmax(class_count)
 
     def make_prediction_knn_weighted(self, x, y, k, source_som, target_som, source,
-                                     mode='none'):
+                                     mode='none', train=True):
+        if train:
+            bmu_class_dict = target_som.train_bmu_class_dict
+        else:
+            bmu_class_dict = target_som.test_bmu_class_dict
         source_activation, pos_source_activation = source_som.get_activations(x)
         source_activation = np.array(source_activation).reshape((-1, 1))
         target_activation = self.propagate_activation(source_activation, source_som=source)
@@ -321,12 +334,12 @@ class HebbianModel(object):
         hebbian_bmu_index = np.argmax(target_activation)
         pos_activations = list(target_som._neuron_locations(target_som._m, target_som._n))
         closest_activations, closest_indexes = self.get_bmu_k_closest(target_som, target_activation,
-                                                                      pos_activations, k)
+                                                                      pos_activations, k, train=train)
         # perform a weighted majority vote
-        class_count = [0 for i in set([c[0] for c in target_som.bmu_class_dict.values() if c != []])]
+        class_count = [0 for i in set([c[0] for c in bmu_class_dict.values() if c != []])]
         for i in range(len(closest_indexes)):
             #print(closest_indexes[i])
-            bmu_class_list = target_som.bmu_class_dict[closest_indexes[i]]
+            bmu_class_list = bmu_class_dict[closest_indexes[i]]
             if bmu_class_list != []:
                 class_count[bmu_class_list[0]] += 1 * vote_weights[closest_indexes[i]]
         #print(class_count)
