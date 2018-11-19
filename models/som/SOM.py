@@ -301,52 +301,51 @@ class SOM(object):
                 self._weightages = list(self._sess.run(self._weightage_vects))
                 self._locations = list(self._sess.run(self._location_vects))
 
-                if logging == True:
-                #Run summaries
-                    if input_classes is not None:
-                        train_comp = old_train_comp
-                        if iter_no % save_every == 0:
+                if iter_no % save_every == 0:
+                    if logging == True:
+                    #Run summaries
+                        if input_classes is not None:
+                            train_comp = old_train_comp
                             train_comp, train_confusion = self.class_compactness(input_vects, input_classes)
                             print('Train compactness: {}'.format(np.mean(train_comp)))
                             print('Train confusion: {}'.format(train_confusion))
                             old_train_comp = train_comp
                             train_mean_conv, train_var_conv, train_conv = self.population_based_convergence(input_vects)
                             train_quant_error = self.quantization_error(input_vects)
-                        #train_quant_error = [0]
-                        #print(train_conv)
-                    else:
-                        train_comp = [0]
-                        train_conv = [0]
-                    if test_classes is not None:
-                        test_comp = old_test_comp
-                        if iter_no % save_every == 0:
+                            #train_quant_error = [0]
+                            #print(train_conv)
+                        else:
+                            train_comp = [0]
+                            train_conv = [0]
+                        if test_classes is not None:
+                            test_comp = old_test_comp
                             test_comp, test_confusion = self.class_compactness(test_vects, test_classes, train=False)
                             print('Test compactness: {}'.format(np.mean(test_comp)))
                             print('Test confusion: {}'.format(test_confusion))
                             old_test_comp = test_comp
                             test_mean_conv, test_var_conv, test_conv = self.population_based_convergence(test_vects)
                             test_quant_error = self.quantization_error(test_vects)
-                        #test_quant_error = [0]
-                        #print(test_conv)
-                    else:
-                        test_comp = [0]
-                        test_conv = [0]
-                    summary = self._sess.run(self.summaries,
-                                             feed_dict={self._train_compactness: train_comp,
-                                                        self._test_compactness: test_comp,
-                                                        self._train_population_convergence: train_conv,
-                                                        self._test_population_convergence: test_conv,
-                                                        self._train_mean_convergence: train_mean_conv,
-                                                        self._test_mean_convergence: test_mean_conv,
-                                                        self._train_var_convergence: train_var_conv,
-                                                        self._test_var_convergence: test_var_conv,
-                                                        self._avg_delta: avg_delta,
-                                                        self._train_confusion: train_confusion,
-                                                        self._test_confusion: test_confusion,
-                                                        self._train_quant_error: train_quant_error,
-                                                        self._test_quant_error: test_quant_error
-                                                        })
-                    summary_writer.add_summary(summary, global_step=iter_no)
+                            #test_quant_error = [0]
+                            #print(test_conv)
+                        else:
+                            test_comp = [0]
+                            test_conv = [0]
+                        summary = self._sess.run(self.summaries,
+                                                 feed_dict={self._train_compactness: train_comp,
+                                                            self._test_compactness: test_comp,
+                                                            self._train_population_convergence: train_conv,
+                                                            self._test_population_convergence: test_conv,
+                                                            self._train_mean_convergence: train_mean_conv,
+                                                            self._test_mean_convergence: test_mean_conv,
+                                                            self._train_var_convergence: train_var_conv,
+                                                            self._test_var_convergence: test_var_conv,
+                                                            self._avg_delta: avg_delta,
+                                                            self._train_confusion: train_confusion,
+                                                            self._test_confusion: test_confusion,
+                                                            self._train_quant_error: train_quant_error,
+                                                            self._test_quant_error: test_quant_error
+                                                            })
+                        summary_writer.add_summary(summary, global_step=iter_no)
 
                 #Save model periodically
                 if iter_no % save_every == 0:
@@ -491,12 +490,11 @@ class SOM(object):
 
     def print_som_evaluation(self, input_vects, ys):
         bmu_positions = self.map_vects_memory_aware(input_vects)
-        #class_comp = self.class_compactness(input_vects, ys, train=False)
-        #print('Class Compactness: {}'.format(class_comp))
-        #print('Average Compactness: {}'.format(np.mean(class_comp)))
-        #print('Compactness Variance: {}'.format(np.var(class_comp)))
-        #self.neuron_collapse(input_vects, bmu_positions=bmu_positions)
-        self.neuron_collapse_classwise(input_vects, ys, bmu_positions=bmu_positions)
+        class_comp = self.class_compactness(input_vects, ys, train=False)
+        _, confusion = self.map_vects_confusion(input_vects, ys)
+        print('Average Compactness: {}'.format(np.mean(class_comp)))
+        print('Compactness Variance: {}'.format(np.var(class_comp)))
+        print('Confusion: {}'.format(np.mean(confusion)))
 
     def neuron_collapse(self, input_vects, bmu_positions=None):
         if bmu_positions == None:
@@ -562,28 +560,42 @@ class SOM(object):
         return classwise_collapse, classwise_bmus
 
 
-    def memorize_examples_by_class(self, X, y):
+#    def memorize_examples_by_class(self, X, y):
+#        self.bmu_class_dict = {i : [] for i in range(self._n * self._m)}
+#        for i, (x, yi) in enumerate(zip(X, y)):
+#            activations, _ = self.get_activations(x, normalize=False, mode='exp', threshold=False)
+#            bmu_index = np.argmax(activations)
+#            self.bmu_class_dict[bmu_index].append(yi)
+#        superpositions = self.detect_superpositions(self.bmu_class_dict.values())
+#        print('More than a class mapped to a neuron: '+ str(superpositions))
+#        return superpositions
+
+    def memorize_examples_by_class(self, xs, ys):
         self.bmu_class_dict = {i : [] for i in range(self._n * self._m)}
-        for i, (x, yi) in enumerate(zip(X, y)):
-            activations, _ = self.get_activations(x, normalize=False, mode='exp', threshold=False)
-            bmu_index = np.argmax(activations)
+        result = []
+        superpositions = False
+        for i, (x, yi) in enumerate(zip(xs, ys)):
+            bmu_index, bmu_loc = self.get_BMU_mine(x)
+            result.append(bmu_index)
+            if superpositions == False:
+                if len(self.bmu_class_dict[bmu_index]) > 0 and yi not in self.bmu_class_dict[bmu_index]:
+                    superpositions = True
             self.bmu_class_dict[bmu_index].append(yi)
-        superpositions = self.detect_superpositions(self.bmu_class_dict.values())
-        print('More than a class mapped to a neuron: '+ str(superpositions))
         return superpositions
 
-    def get_activations(self, input_vect, normalize=True, threshold=True, mode='exp'):
-      # get activations for the word learning
 
+
+
+    def get_activations(self, input_vect, normalize=True, threshold=True, mode='exp',
+                        tau=0.6, threshold=0.6):
       # Quantization error:
       activations = list()
       pos_activations = list()
       for i in range(len(self._weightages)):
           d = np.array([])
-
           d = (np.absolute(input_vect-self._weightages[i])).tolist()
           if mode == 'exp':
-              activations.append(math.exp(-(np.sum(d)/len(d))/self.tau))
+              activations.append(math.exp(-(np.sum(d)/len(d))/tau))
           if mode == 'linear':
               activations.append(1/np.sum(d))
           pos_activations.append(self._locations[i])
@@ -593,7 +605,7 @@ class SOM(object):
           min_ = min(activations)
           activations = (activations - min_) / float(max_ - min_)
       if threshold:
-          idx = activations < self.threshold
+          idx = activations < threshold
           activations[idx] = 0
       return [activations,pos_activations]
 
@@ -621,7 +633,7 @@ class SOM(object):
     def class_compactness(self, xs, ys, train=True, strategy='memory-aware'):
         confusion = [0]
         if strategy == 'memory-aware':
-            bmu_positions, confusion = self.map_vects_collapse(xs, ys)
+            bmu_positions, confusion = self.map_vects_confusion(xs, ys)
         elif strategy == 'parallel':
             bmu_positions = self.map_vects_parallel(xs)
         else:

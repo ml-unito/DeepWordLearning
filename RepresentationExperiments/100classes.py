@@ -25,8 +25,8 @@ visual_data_path = os.path.join(Constants.DATA_FOLDER,
                                 'VisualInputTrainingSet.csv')
 
 parser = argparse.ArgumentParser(description='Train a Hebbian model.')
-parser.add_argument('a-path', type=str, help='The path to the trained acoustic SOM model')
-parser.add_argument('v-path', type=str, help='The path to the trained visual SOM model')
+parser.add_argument('apath', type=str, help='The path to the trained acoustic SOM model')
+parser.add_argument('vpath', type=str, help='The path to the trained visual SOM model')
 parser.add_argument('--lr', metavar='lr', type=float, default=100, help='The hebbian model learning rate')
 parser.add_argument('--a-sigma', metavar='sigma', type=float, default=100, help='The SOM neighborhood value')
 parser.add_argument('--a-alpha', metavar='alpha', type=float, default=100, help='The SOM initial learning rate')
@@ -65,9 +65,9 @@ if __name__ == '__main__':
     #v_xs = MinMaxScaler().fit_transform(v_xs)
     a_dim = len(a_xs[0])
     v_dim = len(v_xs[0])
-    som_a = SOM(args.aneurons1, args.aneurons2, a_dim, n_iterations=10000, alpha=args.a_alpha, checkpoint_loc=args.a_path,
+    som_a = SOM(args.aneurons1, args.aneurons2, a_dim, n_iterations=10000, alpha=args.a_alpha, checkpoint_loc=args.apath,
                  tau=0.1, threshold=0.6, batch_size=args.a_batch, data='audio', sigma=args.a_sigma)
-    som_v = SOM(args.vneurons1, args.vneurons2, v_dim, n_iterations=10000, alpha=args.v_alpha, checkpoint_loc=args.v_path,
+    som_v = SOM(args.vneurons1, args.vneurons2, v_dim, n_iterations=10000, alpha=args.v_alpha, checkpoint_loc=args.vpath,
                  tau=0.1, threshold=0.6, batch_size=args.v_batch, data='video', sigma=args.v_sigma)
 
     v_ys = np.array(v_ys)
@@ -89,7 +89,7 @@ if __name__ == '__main__':
 
     v_xs_train, v_xs_test, v_ys_train, v_ys_test = train_test_split(v_xs, v_ys, test_size=0.2, stratify=v_ys,
                                                                     random_state=random_seed)
-    v_xs_train, v_xs_val, v_ys_train, a_ys_val = train_test_split(v_xs_train, v_ys_train, test_size=0.5, stratify=a_ys_train,
+    v_xs_train, v_xs_val, v_ys_train, v_ys_val = train_test_split(v_xs_train, v_ys_train, test_size=0.5, stratify=v_ys_train,
                                                                     random_state=random_seed)
 
     a_xs_train, a_xs_val = transform_data(a_xs_train, a_xs_val, rotation=args.rotation)
@@ -100,8 +100,8 @@ if __name__ == '__main__':
         som_a.train(a_xs_train, input_classes=a_ys_train, test_vects=a_xs_test, test_classes=a_ys_test)
         som_v.train(v_xs_train, input_classes=v_ys_train, test_vects=v_xs_test, test_classes=v_ys_test)
     else:
-        som_a.restore_trained()
-        som_v.restore_trained()
+        som_a.restore_trained(args.apath)
+        som_v.restore_trained(args.vpath)
 
     acc_a_list = []
     acc_v_list = []
@@ -118,8 +118,9 @@ if __name__ == '__main__':
         print('Memorizing...')
         # prepare the soms for alternative matching strategies - this is not necessary
         # if prediction_alg='regular' in hebbian_model.evaluate(...) below
-        som_a.memorize_examples_by_class(a_xs_train, a_ys_train)
-        som_v.memorize_examples_by_class(v_xs_train, v_ys_train)
+        if args.algo != 'regular':
+            som_a.memorize_examples_by_class(a_xs_train, a_ys_train)
+            som_v.memorize_examples_by_class(v_xs_train, v_ys_train)
         print('Evaluating...')
         accuracy_a = hebbian_model.evaluate(a_xs_val, v_xs_val, a_ys_val, v_ys_val, source='a',
                                           prediction_alg=args.algo)
