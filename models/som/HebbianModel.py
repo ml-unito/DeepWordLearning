@@ -311,8 +311,8 @@ class HebbianModel(object):
         class_count = [0 for i in range(source_som.num_classes)]
         for i in range(len(closest_indexes)):
             bmu_class_list = bmu_class_dict[closest_indexes[i]]
-            for class in bmu_class_list:
-                class_count[class] += 1
+            for c in bmu_class_list:
+                class_count[c] += 1
         return np.argmax(class_count)
 
     def make_prediction_knn_weighted(self, x, y, k, source_som, target_som, source,
