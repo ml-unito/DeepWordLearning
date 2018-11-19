@@ -132,7 +132,7 @@ if __name__ == '__main__':
                                           prediction_alg=args.algo)
         accuracy_v = hebbian_model.evaluate(a_xs_train, v_xs_train, a_ys_train, v_ys_train, source='v',
                                           prediction_alg=args.algo)
-        print('Training set: n={}, accuracy_a={}, accuracy_v={}'.format(n, a4ccuracy_a, accuracy_v))
+        print('Training set: n={}, accuracy_a={}, accuracy_v={}'.format(n, accuracy_a, accuracy_v))
         print('Evaluating Val Set...')
         accuracy_a = hebbian_model.evaluate(a_xs_val, v_xs_val, a_ys_val, v_ys_val, source='a',
                                           prediction_alg=args.algo)
