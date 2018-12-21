@@ -22,8 +22,9 @@ from .SOM import SOM
 import os
 import math
 import random
-import matplotlib.patches as mpatches
+import matplotlib.patches as m_patches
 from utils.constants import Constants
+import seaborn as sb
 
 fInput = 'input10classes/VisualInputTrainingSet.csv'
 N = 1000
@@ -65,59 +66,81 @@ def printToFileCSV(prototipi,file):
 
   f.close()
 
-def showSom(som,inputs,nameInputs,count,title, filenames=None):
-  """
-    build of the map with the color associated to the different classes
-  """
-  print('costruzione mappa '+title)
-  mapped = som.map_vects(inputs)
-  image_grid = np.zeros(shape=(20,30,3))
-  plt.figure(count)
-  plt.imshow(image_grid)
-  plt.title(title)
-  inputClass = nameInputs[0]
+def show_som(som, inputs, labels, title, filenames=None, show=False, dark=True, scatter=True, name_suffix=''):
+    """
+    Generates a plot displaying the SOM with its active BMUs and the relative examples
+    associated with them. Each class is associated with a different color.
+    :param SOM som:       SOM instance initialized with the wanted parameters (possibly already trained)
+    :param arr inputs:    np array (n, dims) containing data to be displayed on the map
+    :param arr labels:    np array (n,) containing a label for each example
+    :param str title:     title for the plot
+    :param arr filenames: actually no clue
+    :param bool show:     whether to call show() or save to file
+    :param bool dark:     plots the SOM with a dark theme when true, or a light one otherwise
+    :param bool scatter:  uses pyplot scatter plot when true, otherwise uses a simple text label
+    :param str name_suffix: string to add to the end of the filename, when using show=False
+    """
+    matplotlib.use('TkAgg') #in order to print something
+    print('Building graph "{}"...'.format(title))
+    classes = np.unique(labels)
+    mapped = np.array(som.map_vects(inputs))
 
-  # color generation
-  classColor = list()
-  ## for 100 classes
-  # for i in range(100):
-  #   print(i)
-  #   c = Color(rgb=(random.random(), random.random(), random.random()))
-  #   classColor.append(str(c))
-  ## for 10 classes:
-  classColor = ['white','red','blue','cyan','yellow','green','gray','brown','orange','magenta']
-  color_dict = create_color_dict(nameInputs, classColor)
+    bmu_list = []
+    for c in classes:
+        class_bmu = mapped[np.where(labels == c)]
+        bmu_list.append(np.unique(class_bmu, axis=0, return_counts=True))
+    print('Done mapping inputs, preparing canvas...')
 
-  if filenames == None:
-    for i, m in enumerate(mapped):
-      plt.text(m[1], m[0], str('____'), ha='center', va='center', color=color_dict[nameInputs[i]], alpha=0.5,
-          bbox=dict(facecolor=color_dict[nameInputs[i]], alpha=0.6, lw=0, boxstyle='round4'))
-  else:
-    for i, m in enumerate(mapped):
-      plt.text(m[1], m[0], str('_{:03d}_'.format(i)), ha='center', va='center', color=color_dict[nameInputs[i]], alpha=0.5,
-          bbox=dict(facecolor=color_dict[nameInputs[i]], alpha=0.6, lw=0, boxstyle='round4'))
-      print('{}: {}'.format(i, filenames[i]))
+    palette = 'colorblind'
+    if dark:
+        plt.style.use('dark_background')
+        palette = 'bright'
+    plt.figure(figsize=(som._n/3.0, som._m/3.0))
+    plt.xlim([-1, som._n])
+    plt.ylim([-1, som._m])
+    plt.gca().set_xticks(np.arange(-1, som._n, 1))
+    plt.gca().set_yticks(np.arange(-1, som._m, 1))
+    plt.gca().grid(alpha=0.2, linestyle=':')
+    plt.title(title)
 
+    #generate colors based on the number of classes
+    np.random.seed(42)
+    colors = sb.color_palette(palette, n_colors=len(classes))
+    color_dict = {label: col for label, col in zip(classes, colors)}
 
-  ## draw of the prototypes on the map
-  # for k in prototipi.keys():
-  #     [BMUi, BMUpos] = som.get_BMU(prototipi[k])
-  #     plt.text(BMUpos[1], BMUpos[0], str(k), ha='center', va='center',
-  #             bbox=dict(facecolor='white', alpha=0.9, lw=0))
-  plt.draw()
+    print('Adding labels for each mapped input...', end='')
+    if filenames == None:
+        if scatter:
+            for i, (bmu, counts) in enumerate(bmu_list):
+                xx = [m[1] for m in bmu]
+                yy = [m[0] for m in bmu]
+                plt.scatter(xx, yy, s=counts*16, color=colors[i], alpha=0.6)
+        else:
+            for i, m in enumerate(mapped):
+                plt.text(m[1], m[0], str('__'), ha='center', va='center', color=color_dict[labels[i]],alpha=0.5,
+                         bbox=dict(facecolor=color_dict[labels[i]], alpha=0.6, lw=0, boxstyle='round4'))
+    else:
+      for i, m in enumerate(mapped):
+        plt.text(m[1], m[0], str('_{:03d}_'.format(i)), ha='center', va='center', color=color_dict[labels[i]],
+                 alpha=0.5,
+                 bbox=dict(facecolor=color_dict[labels[i]], alpha=0.6, lw=0, boxstyle='round4'))
+        print('{}: {}'.format(i, filenames[i]))
+    print('done.')
 
-
-  # draw a legend
-  plt.figure()
-  reverse_color_dict = {v: k for k, v in color_dict.items()}
-  patch_list = []
-  for i in range(len(classColor)):
-      patch = mpatches.Patch(color=classColor[i], label=reverse_color_dict[classColor[i]])
+    print('Drawing legend...')
+    patch_list = []
+    for i in range(len(classes)):
+      patch = m_patches.Patch(color=colors[i], label=classes[i])
       patch_list.append(patch)
-  plt.legend(handles=patch_list)
+    plt.legend(handles=patch_list, loc='center left',bbox_to_anchor=(1, 0.5))
 
-  plt.savefig(os.path.join(Constants.PLOT_FOLDER, 'viz_som.png'))
-  return plt
+    img_name = 'som_{}x{}_s{}_a{}_{}.png'.format(som._m, som._n, som.sigma, som.alpha, name_suffix)
+    img_path = os.path.join(Constants.PLOT_FOLDER, img_name)
+    if show:
+      plt.show()
+    else:
+      print('Saving file: {}'.format(img_path))
+      plt.savefig(img_path)
 
 
 def classPrototype(inputs,nameInputs):
@@ -165,4 +188,4 @@ if __name__ == '__main__':
     nameInputs[k] = nameInputs[k].split('_')[0]
 
   #shows the SOM
-  showSom(som,inputs,nameInputs,1,'Visual map')
+  show_som(som,inputs,nameInputs,'Visual map')

@@ -46,7 +46,7 @@ class SOM(object):
     def __init__(self, m, n, dim, n_iterations=50, alpha=None, sigma=None,
                  tau=0.5, threshold=0.6, batch_size=500, num_classes=100,
                  checkpoint_loc = None, data='audio', sigma_decay='time',
-                 lr_decay='time'):
+                 lr_decay='time', seed=42):
         """
         Initializes all necessary components of the TensorFlow
         Graph.
@@ -77,6 +77,7 @@ class SOM(object):
 
         self.tau = tau
         self.threshold = threshold
+        self.seed = seed
 
         self.batch_size = batch_size
 
@@ -113,7 +114,7 @@ class SOM(object):
             #Randomly initialized weightage vectors for all neurons,
             #stored together as a matrix Variable of size [m*n, dim]
             self._weightage_vects = tf.Variable(tf.random_normal(
-                [m*n, dim], mean=0, stddev=1))
+                [m*n, dim], mean=0, stddev=1, seed=self.seed))
 
             #Matrix of size [m*n, 2] for SOM grid locations
             #of neurons
@@ -277,7 +278,7 @@ class SOM(object):
                 yield np.array([i, j])
 
     def train(self, input_vects, input_classes=None, test_vects=None, test_classes=None,
-              logging=True, save_every=40):
+              logging=True, save_every=40, log_every=20):
         """
         Trains the SOM.
         'input_vects' should be an iterable of 1-D NumPy arrays with
@@ -286,7 +287,7 @@ class SOM(object):
         taken as starting conditions for training.
         """
         with self._sess:
-            saver = tf.train.Saver(max_to_keep=int(np.ceil(self._n_iterations/save_every)))
+            saver = tf.train.Saver(max_to_keep=int(np.ceil(self._n_iterations/save_every)), save_relative_paths=True)
             summary_writer = tf.summary.FileWriter(self.logs_path)
             old_train_comp = [0]
             old_test_comp = [0]
@@ -319,7 +320,7 @@ class SOM(object):
                 self._weightages = list(self._sess.run(self._weightage_vects))
                 self._locations = list(self._sess.run(self._location_vects))
 
-                if iter_no % save_every == 0:
+                if iter_no % log_every == 0:
                     if logging == True:
                     #Run summaries
                         if input_classes is not None:
@@ -431,10 +432,11 @@ class SOM(object):
         This probably only makes sense if the data in xs 
         has been scaled using min-max scaling.
         '''
-        weights = np.random.uniform(size=(self._m * self._n, len(xs[0])))
         col_wise_max = np.max(xs, axis=0)
         col_wise_min = np.min(xs, axis=0)
-        weights = (col_wise_max - col_wise_min) * weights + col_wise_min
+        shape = (self._m * self._n, xs.shape[1])
+        np.random.seed(self.seed)
+        weights = np.random.uniform(low=col_wise_min, high=col_wise_max, size=shape)
         self.assign_weights(weights)
 
 
