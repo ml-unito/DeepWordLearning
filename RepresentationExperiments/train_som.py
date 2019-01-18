@@ -1,7 +1,7 @@
 from models.som.SOM import SOM
 from models.som.HebbianModel import HebbianModel
 from utils.constants import Constants
-from utils.utils import from_csv_with_filenames, from_csv_visual_100classes, from_csv, to_csv
+from utils.utils import from_csv_with_filenames, from_csv_visual_100classes, from_csv, to_csv, from_npy_visual_data
 from sklearn.utils import shuffle
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
@@ -20,6 +20,9 @@ audio_data_path = os.path.join(Constants.DATA_FOLDER,
 visual_data_path = os.path.join(Constants.DATA_FOLDER,
                                 '100classes',
                                 'VisualInputTrainingSet.csv')
+edo_path = os.path.join(Constants.DATA_FOLDER,
+                        '10classes',
+                        'visual_10classes_train_b.npy')
 
 
 if __name__ == '__main__':
@@ -48,6 +51,8 @@ if __name__ == '__main__':
         xs, ys, _ = from_csv_with_filenames(audio_data_path)
     elif args.data == 'video':
         xs, ys = from_csv_visual_100classes(visual_data_path)
+    elif args.data == 'edo':
+        xs, ys, _ = from_npy_visual_data(edo_path) 
     else:
         raise ValueError('--data argument not recognized')
 
@@ -70,7 +75,26 @@ if __name__ == '__main__':
     xs_train, xs_val, ys_train, ys_val = train_test_split(xs_train, ys_train, test_size=0.5, stratify=ys_train,
                                                             random_state=args.seed)
 
-    xs_train, xs_test = transform_data(xs_train, xs_val, rotation=args.rotation)
+    xs_train, xs_val = transform_data(xs_train, xs_val, rotation=args.rotation)
 
-    som.train(xs_train, input_classes=ys_train, test_vects=xs_val, test_classes=ys_val,
-              logging=args.logging)
+    #scaler = MinMaxScaler()
+    #xs_train = scaler.fit_transform(xs_train)
+    #xs_val = scaler.transform(xs_val)
+
+    som.init_toolbox(xs_train)
+
+    #b = som.quantization_error(xs_train)
+    np.set_printoptions(threshold=np.nan)
+    bmus = som._sess.run(som.bmu_indexes, feed_dict={som._vect_input: xs_train})
+    print(len(set(bmus)))
+    weights = som._sess.run(som._weightage_vects)
+    #print(weights)
+    #a = np.linalg.norm(weights-xs_train[0], axis=1)
+    #print(xs_train[0])
+    #print(weights[np.argmin(a)])
+    #print(a)
+    #print(min(a))
+    #print(a)
+    #print(b)
+    #som.train(xs_train, input_classes=ys_train, test_vects=xs_val, test_classes=ys_val,
+    #          logging=args.logging)

@@ -258,6 +258,7 @@ def transform_data(xs, test_xs, rotation=True):
     '''
     xs -= np.mean(xs, axis=0)
     xs /= np.std(xs, axis=0)
+    print(xs)
     if rotation:
         covariance_matrix = np.cov(xs, rowvar=False)
         eig_vals, eig_vecs = np.linalg.eigh(covariance_matrix)
@@ -270,3 +271,16 @@ def transform_data(xs, test_xs, rotation=True):
     if rotation:
         test_xs = np.dot(eig_vecs.T, xs.T).T
     return xs, test_xs
+
+def from_npy_visual_data(path, classes=10):
+    data = np.load(path)
+    xs = data[:,:-1]
+    labels = data[:,-1].astype(np.int)
+
+    uniques = np.unique(labels).tolist()
+    assert np.unique(uniques).size == classes
+
+    id_to_index = {label: index for index, label in enumerate(uniques)}
+    index_to_id = {v: k for k, v in id_to_index.items()}
+    ys = np.array([id_to_index[l] for l in labels])
+    return xs, ys, index_to_id
