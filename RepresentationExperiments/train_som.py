@@ -1,7 +1,7 @@
 from models.som.SOM import SOM
 from models.som.HebbianModel import HebbianModel
 from utils.constants import Constants
-from utils.utils import from_csv_with_filenames, from_csv_visual_100classes, from_csv, to_csv, from_npy_visual_data
+from utils.utils import from_csv_with_filenames, from_csv_visual_100classes, from_csv, to_csv, from_npy_visual_data, to_csv
 from sklearn.utils import shuffle
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.model_selection import train_test_split
@@ -48,7 +48,7 @@ if __name__ == '__main__':
 
 
     if args.data == 'audio':
-        xs, ys, _ = from_csv_with_filenames('data/cocoimagenet10classes/audio10classes20pca25t.csv')
+        xs, ys, _ = from_csv_with_filenames('data/cocoimagenet/audio10classes20pca25t.csv')
     elif args.data == 'video':
         xs, ys = from_csv_visual_100classes(visual_data_path)
     elif args.data == 'edo':
@@ -83,3 +83,6 @@ if __name__ == '__main__':
     xs_test = scaler.transform(xs_test)
     
     som.train(xs_train, input_classes=ys_train, test_vects=xs_test, test_classes=ys_test)
+
+    to_csv(xs_train, ys_train, som.checkpoint_loc + '/train.csv')
+    to_csv(xs_test, ys_test, som.checkpoint_loc + '/test.csv')
