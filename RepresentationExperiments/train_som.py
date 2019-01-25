@@ -3,7 +3,7 @@ from models.som.HebbianModel import HebbianModel
 from utils.constants import Constants
 from utils.utils import from_csv_with_filenames, from_csv_visual_100classes, from_csv, to_csv, from_npy_visual_data
 from sklearn.utils import shuffle
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.model_selection import train_test_split
 from utils.utils import create_folds, transform_data
 import os
@@ -48,7 +48,7 @@ if __name__ == '__main__':
 
 
     if args.data == 'audio':
-        xs, ys, _ = from_csv_with_filenames(audio_data_path)
+        xs, ys, _ = from_csv_with_filenames('data/cocoimagenet10classes/audio10classes20pca25t.csv')
     elif args.data == 'video':
         xs, ys = from_csv_visual_100classes(visual_data_path)
     elif args.data == 'edo':
@@ -60,7 +60,7 @@ if __name__ == '__main__':
 
     som = SOM(args.neurons1, args.neurons2, dim, n_iterations=args.epochs, alpha=args.alpha,
                  tau=0.1, threshold=0.6, batch_size=args.batch, data=args.data, sigma=args.sigma,
-                 num_classes=args.classes, sigma_decay='constant')
+                 num_classes=args.classes, sigma_decay='linear')
 
     ys = np.array(ys)
     xs = np.array(xs)
@@ -72,29 +72,14 @@ if __name__ == '__main__':
     xs_train, xs_test, ys_train, ys_test = train_test_split(xs, ys, test_size=0.2, stratify=ys,
                                                             random_state=args.seed)
 
-    xs_train, xs_val, ys_train, ys_val = train_test_split(xs_train, ys_train, test_size=0.5, stratify=ys_train,
-                                                            random_state=args.seed)
+    #xs_train, xs_val, ys_train, ys_val = train_test_split(xs_train, ys_train, test_size=0.2, stratify=ys_train,
+    #                                                        random_state=args.seed)
 
-    xs_train, xs_val = transform_data(xs_train, xs_val, rotation=args.rotation)
+    #xs_train, xs_val = transform_data(xs_train, xs_val, rotation=args.rotation)
 
     #scaler = MinMaxScaler()
-    #xs_train = scaler.fit_transform(xs_train)
-    #xs_val = scaler.transform(xs_val)
-
-    som.init_toolbox(xs_train)
-
-    #b = som.quantization_error(xs_train)
-    np.set_printoptions(threshold=np.nan)
-    bmus = som._sess.run(som.bmu_indexes, feed_dict={som._vect_input: xs_train})
-    print(len(set(bmus)))
-    weights = som._sess.run(som._weightage_vects)
-    #print(weights)
-    #a = np.linalg.norm(weights-xs_train[0], axis=1)
-    #print(xs_train[0])
-    #print(weights[np.argmin(a)])
-    #print(a)
-    #print(min(a))
-    #print(a)
-    #print(b)
-    #som.train(xs_train, input_classes=ys_train, test_vects=xs_val, test_classes=ys_val,
-    #          logging=args.logging)
+    scaler = StandardScaler()
+    xs_train = scaler.fit_transform(xs_train)
+    xs_test = scaler.transform(xs_test)
+    
+    som.train(xs_train, input_classes=ys_train, test_vects=xs_test, test_classes=ys_test)

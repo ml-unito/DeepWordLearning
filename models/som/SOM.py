@@ -323,27 +323,27 @@ class SOM(object):
                     if logging == True:
                     #Run summaries
                         if input_classes is not None:
-                            train_comp = old_train_comp
-                            train_comp, train_confusion, train_worst_confusion, train_usage_rate = self.compactness_stats(input_vects, input_classes)
+                            _, train_confusion, train_worst_confusion, train_usage_rate = self.compactness_stats(input_vects, input_classes)
+                            train_comp = self.class_compactness(input_vects, input_classes)
                             print('Train compactness: {}'.format(np.mean(train_comp)))
                             print('Train confusion: {}'.format(train_confusion))
                             old_train_comp = train_comp
                             train_mean_conv, train_var_conv, train_conv = self.population_based_convergence(input_vects)
-                            train_quant_error = self.quantization_error(input_vects)
-                            #train_quant_error = [0]
+                            #_, train_quant_error = self.quantization_error(input_vects)
+                            train_quant_error = .0
                             #print(train_conv)
                         else:
                             train_comp = [0]
                             train_conv = [0]
                         if test_classes is not None:
-                            test_comp = old_test_comp
-                            test_comp, test_confusion, test_worst_confusion, test_usage_rate = self.compactness_stats(test_vects, test_classes, train=False)
+                            _, test_confusion, test_worst_confusion, test_usage_rate = self.compactness_stats(test_vects, test_classes, train=False)
+                            test_comp = self.class_compactness(test_vects, test_classes)
                             print('Test compactness: {}'.format(np.mean(test_comp)))
                             print('Test confusion: {}'.format(test_confusion))
                             old_test_comp = test_comp
                             test_mean_conv, test_var_conv, test_conv = self.population_based_convergence(test_vects)
-                            test_quant_error = self.quantization_error(test_vects)
-                            #test_quant_error = [0]
+                            #_, test_quant_error = self.quantization_error(test_vects)
+                            test_quant_error = .0
                             #print(test_conv)
                         else:
                             test_comp = [0]
@@ -734,6 +734,40 @@ class SOM(object):
         else:
             class_comp = intra_class_distance/self.test_inter_class_distance
         return class_comp, confusion, worst_confusion, usage_rate
+   
+    def class_compactness(self, xs, ys):
+        """
+        Computes the compactness value for each class.
+        :param xs:  input data for the SOM, shape (n_examples, n_dim)
+        :param ys:  labels for each xs value , shape (n_examples,)
+        :return:    list of class compactness values
+        """
+        classes = np.unique(ys)
+        mapped = np.array(self.map_vects(xs))  #map inputs to their BMUs
+
+        intra_class_dist = np.zeros(classes.size)
+        inter_class_dist = 0.0
+
+        #intra cluster distance
+        # avg of ||bmu(i) - bmu(j)|| for each i,j in C
+        for c in classes:
+            class_bmus = mapped[np.where(ys == c)]
+            n = class_bmus.shape[0]
+            iter_count = ((n-1) * n) / 2  # gauss n(n+1)/2
+            for i, x1 in enumerate(class_bmus):
+                for x2 in class_bmus[i+1:]:
+                    intra_class_dist[c] += np.linalg.norm(x1 - x2)
+            intra_class_dist[c] /= iter_count
+
+        #inter cluster distance
+        # avg of ||bmu(i) - bmu(j)|| for each i,j in every C
+        iter_count = (len(mapped)-1) * len(mapped) / 2
+        for i, x1 in enumerate(mapped):
+            for x2 in mapped[i+1:]:
+                inter_class_dist += np.linalg.norm(x1 - x2)
+
+        inter_class_dist /= float(iter_count)
+        return intra_class_dist / inter_class_dist
 
     def population_based_convergence(self, xs, alpha=0.05):
         '''
