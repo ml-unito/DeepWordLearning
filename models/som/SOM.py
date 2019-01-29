@@ -98,7 +98,7 @@ class SOM(object):
             os.makedirs(self.logs_path)
 
         if checkpoint_loc is None:
-          self.checkpoint_loc = Constants.DATA_FOLDER + '/saved_models/' + self.get_experiment_name()
+          self.checkpoint_loc = Constants.DATA_FOLDER + '/sunday_models/' + self.get_experiment_name()
         else:
           self.checkpoint_loc = checkpoint_loc
 
@@ -234,7 +234,7 @@ class SOM(object):
             config = tf.ConfigProto(
                 device_count = {'GPU': 0}
             )
-            self._sess = tf.Session(config=config)
+            self._sess = tf.Session()
 
 
             ##INITIALIZE VARIABLES

@@ -48,22 +48,23 @@ if __name__ == '__main__':
 
 
     if args.data == 'audio':
-        xs, ys, _ = from_csv_with_filenames('data/cocoimagenet/audio10classes20pca25t.csv')
+        xs, ys, _ = from_csv_with_filenames('data/cocoimagenet10classes/audio10classes10pca10t.csv')
     elif args.data == 'video':
         xs, ys = from_csv_visual_100classes(visual_data_path)
-    elif args.data == 'edo':
-        xs, ys, _ = from_npy_visual_data(edo_path) 
+    elif args.data == 'audiofull':
+        xs, ys, _ = from_csv_with_filenames('data/cocoimagenet/audio10classes10pca15t.csv')
     else:
         raise ValueError('--data argument not recognized')
 
     dim = len(xs[0])
-
+    ys = np.array(ys)
+    xs = np.array(xs) 
     som = SOM(args.neurons1, args.neurons2, dim, n_iterations=args.epochs, alpha=args.alpha,
                  tau=0.1, threshold=0.6, batch_size=args.batch, data=args.data, sigma=args.sigma,
-                 num_classes=args.classes, sigma_decay='linear')
+                 num_classes=len(np.unique(ys)), sigma_decay='linear')
 
-    ys = np.array(ys)
-    xs = np.array(xs)
+    
+    
 
     if args.subsample:
         xs, _, ys, _ = train_test_split(xs, ys, test_size=0.6, stratify=ys, random_state=args.seed)
